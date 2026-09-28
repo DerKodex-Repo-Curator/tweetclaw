@@ -5,7 +5,7 @@
 // SPDX-License-Identifier: MIT
 
 // Pre-publish / pre-commit guard: fails if any known version surface
-// disagrees with package.json. See Xquik-dev/xquik#2024.
+// disagrees with package.json.
 
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
