@@ -12,7 +12,9 @@ import { normalizeMethod, requestNeedsApproval } from './tools/catalog.js';
 import { handleExplore, SEARCH_DESCRIPTION } from './tools/explore.js';
 import { errorResult } from './tools/result.js';
 import { EXECUTE_DESCRIPTION, handleTweetclaw } from './tools/tweetclaw.js';
-import type { ExploreParams, FetchFunction, PluginConfig, TweetclawParams } from './types.js';
+import type { ExploreParams, FetchFunction, PluginConfig, ToolResult, TweetclawParams } from './types.js';
+import type { AnyAgentTool, PluginCommandContext, PluginLogger } from 'openclaw/plugin-sdk/plugin-entry';
+import type { PluginHookBeforeToolCallResult } from 'openclaw/plugin-sdk/types';
 
 interface PollerEvent {
   readonly eventType?: string;
@@ -63,39 +65,24 @@ const CONFIG_SCHEMA = {
   type: 'object',
 };
 
-interface ToolResult {
-  readonly content: ReadonlyArray<{ readonly text: string; readonly type: string }>;
-  readonly isError?: true;
-}
-
-interface CommandContext {
-  readonly args?: string;
-  readonly commandBody?: string;
-  readonly senderId?: string;
-}
+type CommandContext = Readonly<Partial<Pick<PluginCommandContext, 'args' | 'commandBody' | 'senderId'>>>;
 
 interface BeforeToolCallEvent {
   readonly params?: unknown;
   readonly toolName?: string;
 }
 
-interface ToolApprovalRequest {
-  readonly allowedDecisions?: readonly ['allow-once', 'deny'];
-  readonly description: string;
-  readonly pluginId?: string;
-  readonly severity?: 'critical' | 'info' | 'warning';
-  readonly timeoutBehavior?: 'allow' | 'deny';
-  readonly timeoutMs?: number;
-  readonly title: string;
-}
-
-interface BeforeToolCallResult {
-  readonly requireApproval?: ToolApprovalRequest;
-}
+type BeforeToolCallResult = Pick<PluginHookBeforeToolCallResult, 'requireApproval'>;
 
 type BeforeToolCallHandler = (
   event: BeforeToolCallEvent,
 ) => BeforeToolCallResult | Promise<BeforeToolCallResult | undefined> | undefined;
+
+type BeforeToolCallRegistration = (
+  name: 'before_tool_call',
+  handler: BeforeToolCallHandler,
+  options?: { readonly priority?: number },
+) => void;
 
 type CredentialMode = 'api-key' | 'mpp' | 'none';
 type XquikRequest = ReturnType<typeof createProxiedRequest>;
@@ -116,12 +103,7 @@ interface CredentialState {
 }
 
 interface OpenClawApi {
-  readonly logger: {
-    readonly debug?: (message: string) => void;
-    readonly error: (message: string) => void;
-    readonly info: (message: string) => void;
-    readonly warn: (message: string) => void;
-  };
+  readonly logger: Readonly<PluginLogger>;
   readonly pluginConfig?: Readonly<Record<string, unknown>>;
   readonly registerCommand: (options: {
     readonly acceptsArgs?: boolean;
@@ -135,24 +117,14 @@ interface OpenClawApi {
     readonly stop?: (context?: unknown) => void;
   }) => void;
   readonly registerTool: (
-    tool: {
-      readonly description: string;
+    tool: Readonly<Pick<AnyAgentTool, 'description' | 'label' | 'name'>> & {
       readonly execute: (toolCallId: string, params: unknown) => Promise<ToolResult>;
-      readonly name: string;
-      readonly parameters: unknown;
+      readonly parameters: Readonly<AnyAgentTool['parameters']>;
     },
     options?: { readonly name?: string; readonly optional?: boolean },
   ) => void;
-  readonly on?: (
-    name: 'before_tool_call',
-    handler: BeforeToolCallHandler,
-    options?: { readonly priority?: number },
-  ) => void;
-  readonly registerHook?: (
-    name: 'before_tool_call',
-    handler: BeforeToolCallHandler,
-    options?: { readonly priority?: number },
-  ) => void;
+  readonly on?: BeforeToolCallRegistration;
+  readonly registerHook?: BeforeToolCallRegistration;
 }
 
 const EXPLORE_PARAMETERS = {
@@ -374,6 +346,7 @@ function registerTools(api: OpenClawApi, options: RegisterToolsOptions): void {
         return handleExplore(asExploreParams(params));
       },
       name: 'explore',
+      label: 'Explore Xquik endpoints',
       parameters: EXPLORE_PARAMETERS,
     },
     { name: 'explore' },
@@ -401,6 +374,7 @@ function registerTools(api: OpenClawApi, options: RegisterToolsOptions): void {
         });
       },
       name: 'tweetclaw',
+      label: 'Call Xquik',
       parameters: TWEETCLAW_PARAMETERS,
     },
     { name: 'tweetclaw', optional: true },
@@ -487,12 +461,21 @@ function register(api: OpenClawApi, fetchFunction?: FetchFunction): void {
   api.logger.info('TweetClaw: Plugin registered.');
 }
 
-const plugin = definePluginEntry({
-  configSchema: CONFIG_SCHEMA,
+const plugin: ReturnType<typeof definePluginEntry> = definePluginEntry({
+  configSchema: { jsonSchema: CONFIG_SCHEMA },
   description: 'Structured X/Twitter automation through Xquik',
   id: 'tweetclaw',
   name: 'TweetClaw',
-  register,
+  register: (api): void => {
+    register({
+      logger: api.logger,
+      ...(api.pluginConfig === undefined ? {} : { pluginConfig: api.pluginConfig }),
+      registerCommand: api.registerCommand,
+      registerService: api.registerService,
+      registerTool: api.registerTool,
+      on: (name, handler, options): void => { api.on(name, handler, options); },
+    });
+  },
 });
 
 export { register };

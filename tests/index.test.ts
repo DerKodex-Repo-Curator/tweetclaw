@@ -4,62 +4,19 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import manifest from '../openclaw.plugin.json' with { type: 'json' };
-import plugin from '../src/index.js';
+import plugin, { register } from '../src/index.js';
 import * as mpp from '../src/mpp.js';
-import type { ToolResult } from '../src/types.js';
 
-const { configSchema, register } = plugin;
+const { configSchema } = plugin;
 const VALID_SIGNING_KEY = `0x${'2'.repeat(64)}`;
 
-interface RegisteredTool {
-  readonly description: string;
-  readonly execute: (toolCallId: string, params: unknown) => Promise<ToolResult>;
-  readonly name: string;
-  readonly parameters: unknown;
-}
-
-interface RegisteredCommand {
-  readonly acceptsArgs?: boolean;
-  readonly description: string;
-  readonly handler: (context: { readonly args?: string }) => Promise<{ readonly text: string }>;
-  readonly name: string;
-}
-
-interface RegisteredService {
-  readonly id: string;
-  readonly start: () => void;
-  readonly stop?: () => void;
-}
+type RegistrationApi = Parameters<typeof register>[0];
+type RegisteredTool = Parameters<RegistrationApi['registerTool']>[0];
+type RegisteredCommand = Parameters<RegistrationApi['registerCommand']>[0];
+type RegisteredService = Parameters<RegistrationApi['registerService']>[0];
 
 interface RegisteredHook {
-  readonly handler: (
-    event: {
-      readonly params?: unknown;
-      readonly toolName?: string;
-    },
-  ) =>
-    | Promise<
-        | {
-            readonly requireApproval?: {
-              readonly allowedDecisions?: readonly string[];
-              readonly description: string;
-              readonly severity?: string;
-              readonly timeoutBehavior?: string;
-              readonly title: string;
-            };
-          }
-        | undefined
-      >
-    | {
-        readonly requireApproval?: {
-          readonly allowedDecisions?: readonly string[];
-          readonly description: string;
-          readonly severity?: string;
-          readonly timeoutBehavior?: string;
-          readonly title: string;
-        };
-      }
-    | undefined;
+  readonly handler: Parameters<NonNullable<RegistrationApi['on']>>[1];
   readonly name: string;
   readonly priority?: number;
 }
@@ -138,7 +95,7 @@ afterEach(() => {
 describe('register', () => {
   it('exposes the same config schema as the manifest', () => {
     expect.assertions(1);
-    expect(configSchema).toStrictEqual(manifest.configSchema);
+    expect(configSchema.jsonSchema).toStrictEqual(manifest.configSchema);
   });
 
   it('declares OpenClaw tool activation and optional tool metadata', () => {

@@ -6,6 +6,15 @@ import { describe, expect, it } from 'vitest';
 import { handleExplore } from '../src/tools/explore.js';
 
 describe('handleExplore', () => {
+  it('returns SDK metadata without changing catalog text', async () => {
+    expect.assertions(3);
+    const result = await handleExplore({ query: 'zzzznonexistent' });
+    expect(Object.hasOwn(result, 'details')).toBe(true);
+    expect(result.details).toBeUndefined();
+    const serialized = JSON.stringify(result);
+    expect(JSON.parse(serialized)).toStrictEqual({ content: [{ text: '[]', type: 'text' }] });
+  });
+
   it('filters endpoints by keyword', async () => {
     expect.assertions(2);
     const result = await handleExplore({ query: 'tweet' });

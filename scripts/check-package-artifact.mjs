@@ -4,10 +4,11 @@
 //
 // SPDX-License-Identifier: MIT
 
+import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { readFileSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { preparePackedPackageJson, restorePackedPackageJson } from "./pack-package-json.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -18,23 +19,16 @@ function normalizePackagePath(value) {
   return value.replace(/\\/g, "/").replace(/^package\//u, "").replace(/^\.\//u, "");
 }
 
+function readCommandJson(command, args) {
+  return JSON.parse(execFileSync(command, args, {
+    cwd: root,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  }));
+}
+
 function readPackedPackage() {
-  const output = execFileSync(
-    "npm",
-    ["pack", "--json", "--ignore-scripts"],
-    {
-      cwd: root,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-    },
-  );
-  const parsed = JSON.parse(output);
-  let rows = [];
-  if (Array.isArray(parsed)) {
-    rows = parsed;
-  } else if (typeof parsed === "object" && parsed !== null) {
-    rows = Object.values(parsed);
-  }
+  const rows = Object.values(readCommandJson("npm", ["pack", "--json", "--ignore-scripts"]) ?? {});
   if (!Array.isArray(rows) || rows.length !== 1 || typeof rows[0] !== "object" || rows[0] === null) {
     throw new TypeError("npm pack did not return exactly one package row");
   }
@@ -54,16 +48,7 @@ function readPackedFiles(packageRow) {
 }
 
 function readPackedPackageJson(filename) {
-  const raw = execFileSync(
-    "tar",
-    ["-xOf", filename, "package/package.json"],
-    {
-      cwd: root,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-    },
-  );
-  const parsed = JSON.parse(raw);
+  const parsed = readCommandJson("tar", ["-xOf", filename, "package/package.json"]);
   if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
     throw new TypeError("packed package.json must be a JSON object");
   }
@@ -87,21 +72,54 @@ function normalizeSkillEntry(entry) {
   return normalized.endsWith(".md") ? normalized : `${normalized}/SKILL.md`;
 }
 
-preparePackedPackageJson();
-
 let packageRow;
 let packedPackageJson;
+let consumer;
+preparePackedPackageJson();
 try {
+  mkdirSync(join(root, ".tmp"), { recursive: true });
+  consumer = mkdtempSync(join(root, ".tmp", "package-consumer-"));
   packageRow = readPackedPackage();
   if (typeof packageRow.filename !== "string" || packageRow.filename.length === 0) {
     throw new TypeError("npm pack did not report a package filename");
   }
   packedPackageJson = readPackedPackageJson(packageRow.filename);
+  execFileSync("tar", ["-xf", join(root, packageRow.filename), "-C", consumer]);
+  const { default: plugin } = await import(pathToFileURL(join(consumer, "package/dist/index.js")).href);
+  const tools = new Map();
+  const hooks = new Map();
+  const commands = new Set();
+  const host = {
+    logger: { error: assert.fail, info() {}, warn() {} },
+    registerCommand(command) { commands.add(command.name); },
+    registerService: assert.fail,
+    registerTool(tool, options) { tools.set(tool.name, { tool, options }); },
+    on(name, hook) { hooks.set(name, hook); },
+  };
+  plugin.register(host);
+  assert.deepEqual(new Set(tools.keys()), new Set(["explore", "tweetclaw"]));
+  assert.deepEqual(tools.get("tweetclaw").options, { name: "tweetclaw", optional: true });
+  const catalog = await tools.get("explore").tool.execute("consumer", { path: "/api/v1/x/tweets", limit: 1 });
+  assert.equal(JSON.parse(catalog.content[0].text).length, 1);
+  const unavailable = await tools.get("tweetclaw").tool.execute("consumer", { path: "/api/v1/x/tweets" });
+  assert.equal(unavailable.isError, true);
+  assert.match(unavailable.content[0].text, /Add an Xquik API key/);
+  const approval = await hooks.get("before_tool_call")({
+    toolName: "tweetclaw", params: { method: "POST", path: "/api/v1/x/tweets" },
+  });
+  assert.deepEqual(approval.requireApproval.allowedDecisions, ["allow-once", "deny"]);
+  assert.equal(approval.requireApproval.timeoutBehavior, "deny");
+  commands.clear();
+  plugin.register({ ...host, pluginConfig: { apiKey: "test-key", pollingEnabled: false } });
+  assert.deepEqual(commands, new Set(["xstatus", "xtrends"]));
 } finally {
+  restorePackedPackageJson();
+  if (consumer !== undefined) {
+    rmSync(consumer, { recursive: true, force: true });
+  }
   if (typeof packageRow?.filename === "string" && packageRow.filename.length > 0) {
     rmSync(join(root, packageRow.filename), { force: true });
   }
-  restorePackedPackageJson();
 }
 
 const files = readPackedFiles(packageRow);
