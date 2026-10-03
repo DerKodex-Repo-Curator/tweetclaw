@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: MIT
 
+import type { AnyAgentTool } from 'openclaw/plugin-sdk/plugin-entry';
+
 interface EndpointParameter {
   readonly description: string;
   readonly in: 'body' | 'header' | 'path' | 'query';
@@ -52,8 +54,9 @@ interface TweetclawParams {
   readonly query?: Readonly<Record<string, boolean | number | string>>;
 }
 
-interface ToolResult {
-  readonly content: ReadonlyArray<{ readonly text: string; readonly type: 'text' }>;
+interface ToolResult extends Awaited<ReturnType<AnyAgentTool['execute']>> {
+  readonly content: Array<{ readonly text: string; readonly type: 'text' }>;
+  readonly details: undefined;
   readonly isError?: true;
 }
 

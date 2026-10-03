@@ -13,11 +13,11 @@ function extractErrorMessage(error: unknown): string {
 }
 
 function successResult(content: unknown): ToolResult {
-  return { content: [{ text: truncateResponse(content), type: 'text' }] };
+  return { content: [{ text: truncateResponse(content), type: 'text' }], details: undefined };
 }
 
 function errorResult(error: unknown): ToolResult {
-  return { content: [{ text: extractErrorMessage(error), type: 'text' }], isError: true };
+  return { content: [{ text: extractErrorMessage(error), type: 'text' }], details: undefined, isError: true };
 }
 
 export { errorResult, extractErrorMessage, successResult };
