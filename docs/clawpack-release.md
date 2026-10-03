@@ -13,15 +13,17 @@ community info.
 
 ## Run release checks
 
-Run every source, package, and dependency check:
+Run every source, package, dependency, and license check on a clean checkout
+of the release commit:
 
 ```bash
 npm ci
 npm run check:all
-npm audit --audit-level=moderate
+uv tool run --from reuse==6.2.0 reuse lint
 ```
 
-All checks must pass before packing or publishing.
+`check:all` ends with `npm audit --audit-level=low`. All checks must pass
+before packing or publishing.
 
 ## Inspect the package artifact
 
@@ -37,6 +39,23 @@ openclaw skills info tweetclaw
 Confirm the artifact contains `dist/`, `openclaw.plugin.json`, and
 `skills/tweetclaw/`. Verify `explore`, optional `tweetclaw`, approvals, and
 `xtrends` from the installed archive.
+
+## Publish
+
+Releases run from a maintainer machine. GitHub Actions and trusted publishing
+are not used. Sign in first with `npm login`, `npx clawhub@0.23.3 login`, and
+`gh auth login`.
+
+1. Merge the version bump to master. Tag that commit `v<version>` and push the
+   tag.
+2. Check out the tag in a clean checkout.
+3. Run `node scripts/release.mjs --dry-run`. It builds and validates the npm package,
+   the ClawHub package, and the ClawHub Skill without publishing.
+4. Run `npm run release`. It publishes to npm, then the ClawHub package and
+   Skill, then creates the GitHub release with the legal notice.
+
+The script stops when the checkout has changes or the tag is not the current
+master commit. A rerun skips each target that already has the version.
 
 ## Verify public readbacks
 
