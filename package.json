@@ -3,7 +3,7 @@
   "version": "1.6.44",
   "description": "OpenClaw plugin for Twitter search, follower exports, monitoring, media, and approved X automation through structured Xquik endpoints. Not affiliated with X Corp.",
   "license": "MIT",
-  "packageManager": "npm@11.12.1",
+  "packageManager": "npm@12.2.0",
   "type": "module",
   "repository": {
     "type": "git",
@@ -95,7 +95,7 @@
     "prepack": "npm run build && npm run check-public-copy && npm run check-skill-frontmatter && npm run check-versions && npm run check-openclaw-platform-fitness && node scripts/pack-package-json.mjs prepare",
     "postpack": "node scripts/pack-package-json.mjs restore-after-pack",
     "prepublishOnly": "npm run check-public-copy && npm run check-skill-frontmatter && npm run check-versions && npm run build && npm run check-openclaw-platform-fitness && npm run check-package-artifact",
-    "check:all": "npm run typecheck && npm run lint && npm run cpd && npm run knip && npm run check-suppressions && npm run check-em-dash && npm run check-memory-md-size && npm run check-public-copy && npm run check-skill-frontmatter && npm run check-versions && npm run build && npm run check-openclaw-platform-fitness && npm run check-package-artifact && npm run check-reproducible && npm run test:coverage"
+    "check:all": "npm run typecheck && npm run lint && npm run cpd && npm run knip && npm run check-suppressions && npm run check-em-dash && npm run check-memory-md-size && npm run check-public-copy && npm run check-skill-frontmatter && npm run check-versions && npm run build && npm run check-openclaw-platform-fitness && npm run check-package-artifact && npm run check-reproducible && npm run test:coverage && npm audit --audit-level=low"
   },
   "peerDependencies": {
     "mppx": "0.8.17",
@@ -139,14 +139,14 @@
   },
   "overrides": {
     "@hono/node-server": "2.1.1",
-    "brace-expansion": "5.0.9",
-    "ip-address": "10.5.0",
+    "brace-expansion": "5.0.12",
+    "ip-address": "10.7.3",
     "postcss": "8.5.26",
     "tar": "7.5.22",
     "vite": "8.2.1",
-    "fast-uri": "4.1.2",
-    "hono": "4.13.3",
+    "fast-uri": "4.2.1",
+    "hono": "4.13.12",
     "nanoid": "3.3.18",
-    "undici": "8.10.0"
+    "undici": "8.11.2"
   }
 }
