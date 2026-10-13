@@ -161,7 +161,8 @@ async function callTool(params: Readonly<Record<string, unknown>>, config = API_
 }
 
 beforeEach(() => {
-  vi.spyOn(mpp, 'initMpp').mockResolvedValue();
+  // MPP setup is replaced by a payer that pays nothing and uses the plugin's fetch.
+  vi.spyOn(mpp, 'initMpp').mockImplementation(async (_key, baseFetch) => () => baseFetch);
 });
 
 afterEach(() => {

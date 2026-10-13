@@ -12,7 +12,14 @@ import { normalizeMethod, requestNeedsApproval, specEndpoints } from './tools/ca
 import { handleExplore, SEARCH_DESCRIPTION } from './tools/explore.js';
 import { errorResult } from './tools/result.js';
 import { EXECUTE_DESCRIPTION, handleTweetclaw } from './tools/tweetclaw.js';
-import type { ExploreParams, FetchFunction, PluginConfig, ToolResult, TweetclawParams } from './types.js';
+import type {
+  ExploreParams,
+  FetchFunction,
+  PayingFetch,
+  PluginConfig,
+  ToolResult,
+  TweetclawParams,
+} from './types.js';
 import type { AnyAgentTool, PluginCommandContext, PluginLogger } from 'openclaw/plugin-sdk/plugin-entry';
 
 interface PollerEvent {
@@ -99,7 +106,9 @@ type BeforeToolCallRegistration = (
 
 type CredentialMode = 'api-key' | 'mpp' | 'none';
 type XquikRequest = ReturnType<typeof createProxiedRequest>;
-type MppInitialization = Promise<Error | undefined>;
+// Settles to the maker of paying fetches in MPP mode, to an error when MPP
+// setup failed, and to nothing in the other modes.
+type MppInitialization = Promise<Error | PayingFetch | undefined>;
 
 interface RegisterToolsOptions {
   readonly baseUrl: string;
@@ -312,33 +321,40 @@ function resolveCredentialState(config: Readonly<PluginConfig>): CredentialState
     : { accountValue: '', mode: 'mpp', signingValue };
 }
 
-async function initializeMpp(api: OpenClawApi, signingValue: string): Promise<Error | undefined> {
+async function initializeMpp(
+  api: OpenClawApi,
+  signingValue: string,
+  baseFetch: FetchFunction,
+): Promise<Error | PayingFetch> {
   try {
-    await initMpp(signingValue);
+    const payFor = await initMpp(signingValue, baseFetch);
     api.logger.info(`TweetClaw: MPP ready for ${String(MPP_ROUTE_COUNT)} direct read routes.`);
-    return undefined;
+    return payFor;
   } catch {
     api.logger.error('TweetClaw: MPP setup failed. Check config and optional packages.');
     return new Error('Check the signing key and install mppx and viem.');
   }
 }
 
-async function waitForMppInitialization(initialization: MppInitialization): Promise<void> {
-  const error = await initialization;
-  if (error !== undefined) {
-    throw new Error(`MPP unavailable. ${error.message}`);
+/** Waits for MPP setup and returns the maker of paying fetches, if any. */
+async function readyPayer(initialization: MppInitialization): Promise<PayingFetch | undefined> {
+  const state = await initialization;
+  if (state instanceof Error) {
+    throw new Error(`MPP unavailable. ${state.message}`);
   }
+  return state;
 }
 
 async function registerMppMode(
   api: OpenClawApi,
   credentialMode: CredentialMode,
   signingValue: string,
+  baseFetch: FetchFunction,
 ): MppInitialization {
   if (credentialMode !== 'mpp') return undefined;
 
   api.logger.info(`TweetClaw: Direct MPP mode enabled for ${String(MPP_ROUTE_COUNT)} read routes.`);
-  return initializeMpp(api, signingValue);
+  return initializeMpp(api, signingValue, baseFetch);
 }
 
 function registerTools(api: OpenClawApi, options: RegisterToolsOptions): void {
@@ -364,8 +380,9 @@ function registerTools(api: OpenClawApi, options: RegisterToolsOptions): void {
           await Promise.resolve();
           return errorResult(new Error(MISSING_CREDENTIALS_MESSAGE));
         }
+        let payFor: PayingFetch | undefined;
         try {
-          await waitForMppInitialization(options.mppInitialization);
+          payFor = await readyPayer(options.mppInitialization);
         } catch (error: unknown) {
           return errorResult(error);
         }
@@ -375,6 +392,7 @@ function registerTools(api: OpenClawApi, options: RegisterToolsOptions): void {
           fetchFunction: options.fetchFunction,
           mppMode: options.credentialMode === 'mpp',
           params: asTweetclawParams(params),
+          payFor,
         });
       },
       name: 'tweetclaw',
@@ -388,14 +406,14 @@ function registerTools(api: OpenClawApi, options: RegisterToolsOptions): void {
 function registerCommands(
   api: OpenClawApi,
   credentialMode: CredentialMode,
-  request: XquikRequest,
+  createRequest: (payFor?: PayingFetch) => XquikRequest,
   mppInitialization: MppInitialization,
 ): void {
   if (credentialMode === 'api-key') {
     api.registerCommand({
       description: 'Show Xquik account status & usage',
       handler: async () => {
-        const text = await handleXStatus(request);
+        const text = await handleXStatus(createRequest());
         return { text };
       },
       name: 'xstatus',
@@ -406,7 +424,7 @@ function registerCommands(
     acceptsArgs: true,
     description: 'Show trending topics on X',
     handler: async ({ args }) => {
-      await waitForMppInitialization(mppInitialization);
+      const request = createRequest(await readyPayer(mppInitialization));
       const text = await handleXTrends(request, args, credentialMode === 'mpp');
       return { text };
     },
@@ -442,8 +460,11 @@ function register(api: OpenClawApi, fetchFunction?: FetchFunction): void {
   const { baseUrl = DEFAULT_BASE_URL } = config;
   const credential = resolveCredentialState(config);
 
-  const mppInitialization = registerMppMode(api, credential.mode, credential.signingValue);
-  const request = createProxiedRequest(baseUrl, credential.accountValue, fetchFunction);
+  // The plugin's own fetch. MPP payments wrap this one.
+  const baseFetch: FetchFunction = async (input, init) => (fetchFunction ?? globalThis.fetch)(input, init);
+  const mppInitialization = registerMppMode(api, credential.mode, credential.signingValue, baseFetch);
+  const createRequest = (payFor?: PayingFetch): XquikRequest =>
+    createProxiedRequest(baseUrl, credential.accountValue, fetchFunction, payFor);
   registerWriteApprovalHook(api);
 
   if (credential.mode === 'none') {
@@ -460,8 +481,8 @@ function register(api: OpenClawApi, fetchFunction?: FetchFunction): void {
     mppInitialization,
   };
   registerTools(api, toolOptions);
-  registerCommands(api, credential.mode, request, mppInitialization);
-  registerPoller(api, config, credential.mode, request);
+  registerCommands(api, credential.mode, createRequest, mppInitialization);
+  registerPoller(api, config, credential.mode, createRequest());
   api.logger.info('TweetClaw: Plugin registered.');
 }
 

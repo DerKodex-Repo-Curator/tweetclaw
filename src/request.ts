@@ -2,8 +2,9 @@
 //
 // SPDX-License-Identifier: MIT
 
+import { MPP_OFFERS } from './api-spec.js';
 import { assertApiPath, canonicalPath, findRoute } from './routes.js';
-import type { FetchFunction, RequestFunction, RequestOptions } from './types.js';
+import type { EndpointInfo, FetchFunction, PayingFetch, RequestFunction, RequestOptions } from './types.js';
 
 const FETCH_TIMEOUT_MS = 30_000;
 const CONTENT_TYPE_HEADER = 'content-type';
@@ -96,26 +97,38 @@ function isStaticallyRefused(method: string, path: string): boolean {
 // A request goes out only when it names an operation the catalog lists as
 // agent-callable and the static list does not refuse. Every other request is
 // refused, whatever the reason the catalog lacks it.
-function assertCallableRequest(method: string, path: string): void {
+function findCallableEndpoint(method: string, path: string): EndpointInfo {
   assertApiPath(path);
   const route = findRoute(method, path);
-  if (isStaticallyRefused(method, path) || (route !== undefined && route.endpoint === undefined)) {
+  if (route === undefined) {
+    throw new Error(`Endpoint is not in the TweetClaw catalog. Choose a route returned by explore: ${method} ${path}`);
+  }
+  if (isStaticallyRefused(method, path) || route.endpoint === undefined) {
     throw new Error(
       'Endpoint is blocked for agents. Complete account, credential, billing, or support administration at dashboard.xquik.com.',
     );
   }
-  if (route === undefined) {
-    throw new Error(`Endpoint is not in the TweetClaw catalog. Choose a route returned by explore: ${method} ${path}`);
-  }
+  return route.endpoint;
 }
 
 function isProhibitedRequest(method: string, path: string): boolean {
   try {
-    assertCallableRequest(method.toUpperCase(), path);
+    findCallableEndpoint(method.toUpperCase(), path);
     return false;
   } catch {
     return true;
   }
+}
+
+// A route with a listed MPP offer goes through a fetch that pays that offer.
+// Every other request uses the plain fetch and can pay nothing.
+function fetchFor(
+  endpoint: EndpointInfo,
+  fetchFunction: FetchFunction | undefined,
+  payFor: PayingFetch | undefined,
+): FetchFunction {
+  const offer = MPP_OFFERS.get(endpoint);
+  return payFor === undefined || offer === undefined ? fetchFunction ?? globalThis.fetch : payFor(offer);
 }
 
 async function readResponseJson(response: Response): Promise<unknown> {
@@ -183,8 +196,7 @@ function formatApiError(response: Response, payload: unknown): string {
   return code === undefined ? `Xquik API returned ${status}.` : `Xquik API returned ${status} (${code}).`;
 }
 
-// A redirect could carry the credential to another address, so none is
-// followed.
+// No redirect is followed.
 function assertNoRedirect(response: Response): void {
   if (response.status >= REDIRECT_STATUS_FIRST && response.status <= REDIRECT_STATUS_LAST) {
     throw new Error('Xquik API answered with a redirect. TweetClaw follows none, so the credential stays on this host.');
@@ -195,12 +207,12 @@ function createProxiedRequest(
   baseUrl: string,
   credential: string,
   fetchFunction?: FetchFunction,
+  payFor?: PayingFetch,
 ): RequestFunction {
   return async (path: string, options?: Readonly<RequestOptions>): Promise<unknown> => {
     const method = (options?.method ?? 'GET').toUpperCase();
-    assertCallableRequest(method, path);
+    const activeFetch = fetchFor(findCallableEndpoint(method, path), fetchFunction, payFor);
     const hasBody = options?.body !== undefined;
-    const activeFetch = fetchFunction ?? globalThis.fetch;
     const response = await activeFetch(buildFetchUrl(baseUrl, canonicalPath(path), options?.query), {
       ...(hasBody ? { body: JSON.stringify(options.body) } : {}),
       headers: buildFetchHeaders(credential, hasBody, options?.idempotencyKey),

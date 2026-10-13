@@ -7,7 +7,7 @@
 // catalog, run `npm run generate-api-contract`.
 
 import GENERATED_API_CONTRACT from '../generated-api-contract.json' with { type: 'json' };
-import type { EndpointInfo, EndpointParameter } from './types.js';
+import type { EndpointInfo, EndpointParameter, MppOffer } from './types.js';
 
 interface OperationKey {
   readonly method: string;
@@ -21,7 +21,7 @@ interface StoredParameter extends Omit<EndpointParameter, 'in'> {
 // Each operation names its parameters and its response shape by their position
 // in the 2 lists that all operations share.
 interface StoredOperation extends Omit<EndpointInfo, 'mpp' | 'parameters' | 'responseShape'> {
-  readonly mppPrice?: string;
+  readonly mpp?: MppOffer & { readonly price: string };
   readonly parameters: readonly number[];
   readonly responseShape: number;
 }
@@ -40,6 +40,8 @@ interface ApiContract {
   /** Operations under /api/v1 that the catalog leaves out. */
   readonly blockedOperations: readonly OperationKey[];
   readonly endpoints: readonly EndpointInfo[];
+  /** The offer of each endpoint that accepts MPP. */
+  readonly mppOffers: ReadonlyMap<EndpointInfo, MppOffer>;
 }
 
 const PARAMETER_LOCATIONS = ['body', 'header', 'path', 'query'] as const;
@@ -58,27 +60,31 @@ function storedValue<T>(values: readonly T[], position: number, operation: Opera
   return value;
 }
 
-function mppInfo(price: string | undefined): Pick<EndpointInfo, 'mpp'> {
-  return price === undefined ? {} : { mpp: { intent: 'charge', price } };
+function mppInfo(offer: StoredOperation['mpp']): Pick<EndpointInfo, 'mpp'> {
+  return offer === undefined ? {} : { mpp: { intent: 'charge', price: offer.price } };
 }
 
 function loadApiContract(contract: StoredContract): ApiContract {
   const parameters = contract.parameters.map(
     (parameter): EndpointParameter => ({ ...parameter, in: parameterLocation(parameter.in) }),
   );
+  const mppOffers = new Map<EndpointInfo, MppOffer>();
   const endpoints = contract.operations.map((operation): EndpointInfo => {
-    const { mppPrice, parameters: positions, responseShape, ...described } = operation;
-    return {
+    const { mpp, parameters: positions, responseShape, ...described } = operation;
+    const endpoint: EndpointInfo = {
       ...described,
-      ...mppInfo(mppPrice),
+      ...mppInfo(mpp),
       parameters: positions.map((position) => storedValue(parameters, position, operation)),
       responseShape: storedValue(contract.responseShapes, responseShape, operation),
     };
+    if (mpp !== undefined) mppOffers.set(endpoint, { amount: mpp.amount, currency: mpp.currency });
+    return endpoint;
   });
   return {
     approvalFreeReads: new Set(contract.approvalFreeReads),
     blockedOperations: contract.blockedOperations,
     endpoints,
+    mppOffers,
   };
 }
 
@@ -86,7 +92,8 @@ const {
   approvalFreeReads: APPROVAL_FREE_READS,
   blockedOperations: BLOCKED_OPERATIONS,
   endpoints: API_SPEC,
+  mppOffers: MPP_OFFERS,
 } = loadApiContract(GENERATED_API_CONTRACT);
 
-export { API_SPEC, APPROVAL_FREE_READS, BLOCKED_OPERATIONS, loadApiContract };
+export { API_SPEC, APPROVAL_FREE_READS, BLOCKED_OPERATIONS, loadApiContract, MPP_OFFERS };
 export type { StoredContract };

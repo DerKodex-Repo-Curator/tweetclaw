@@ -5,7 +5,7 @@
 import { createProxiedRequest } from '../request.js';
 import { resolveCatalogRequest, specEndpoints } from './catalog.js';
 import { errorResult, successResult } from './result.js';
-import type { FetchFunction, RequestFunction, ToolResult, TweetclawParams } from '../types.js';
+import type { FetchFunction, PayingFetch, RequestFunction, ToolResult, TweetclawParams } from '../types.js';
 
 const EXECUTE_DESCRIPTION = `Call one Xquik API endpoint from TweetClaw's catalog.
 
@@ -69,6 +69,8 @@ interface TweetclawOptions {
   readonly fetchFunction?: FetchFunction | undefined;
   readonly mppMode?: boolean | undefined;
   readonly params: Readonly<TweetclawParams>;
+  /** Pays a route's listed MPP offer. Set in MPP mode only. */
+  readonly payFor?: PayingFetch | undefined;
   readonly timeoutMs?: number | undefined;
 }
 
@@ -79,12 +81,13 @@ async function handleTweetclaw(options: Readonly<TweetclawOptions>): Promise<Too
     fetchFunction,
     mppMode = false,
     params,
+    payFor,
     timeoutMs = EXECUTION_TIMEOUT_MS,
   } = options;
 
   try {
     const requestInfo = resolveCatalogRequest(params, { mppMode });
-    const request: RequestFunction = createProxiedRequest(baseUrl, credential, fetchFunction);
+    const request: RequestFunction = createProxiedRequest(baseUrl, credential, fetchFunction, payFor);
     const timeout = createExecutionTimeout(timeoutMs);
 
     try {

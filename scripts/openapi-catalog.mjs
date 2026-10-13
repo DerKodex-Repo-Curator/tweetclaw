@@ -247,16 +247,26 @@ function needsBrowserSession(openapi, operation) {
   });
 }
 
-// Returns the per-call price that `explore` shows for an MPP route.
-function mppPrice(operation, key) {
+// Returns an MPP route's offer. `explore` shows the price per call, and the
+// plugin pays no more than the amount, in that currency.
+function mppOffer(operation, key) {
   const offers = operation["x-payment-info"]?.offers;
   if (offers === undefined) return undefined;
   const [offer] = offers;
-  if (offers.length !== 1 || offer.intent !== "charge" || !/^\d+$/u.test(offer.amount)) {
-    throw new Error(`${key} has an MPP offer TweetClaw cannot price. It reads 1 charge offer with a whole amount.`);
+  if (
+    offers.length !== 1
+    || offer.intent !== "charge"
+    || !/^\d+$/u.test(offer.amount)
+    || !/^0x[0-9a-fA-F]{40}$/u.test(offer.currency)
+  ) {
+    throw new Error(`${key} has an MPP offer TweetClaw cannot price. It reads 1 charge offer with a whole amount and a token address.`);
   }
   const dollars = (Number(offer.amount) / MPP_UNITS_PER_DOLLAR).toFixed(MPP_PRICE_DECIMALS);
-  return `$${dollars.replace(/\.?0+$/u, "")}/call`;
+  return {
+    amount: offer.amount,
+    currency: offer.currency.toLowerCase(),
+    price: `$${dollars.replace(/\.?0+$/u, "")}/call`,
+  };
 }
 
 function summaryFor(operation, isPrivateRead) {
@@ -270,7 +280,7 @@ function summaryFor(operation, isPrivateRead) {
 function describeOperation(context, entry) {
   const { openapi, policy, resolve } = context;
   const { key, method, operation, path, pathItem } = entry;
-  const price = mppPrice(operation, key);
+  const mpp = mppOffer(operation, key);
   const isPrivateRead = policy.privateReads.includes(key);
   const isAgentProhibited = policy.agentProhibited.includes(key) || needsBrowserSession(openapi, operation);
   return {
@@ -279,7 +289,7 @@ function describeOperation(context, entry) {
     summary: summaryFor(operation, isPrivateRead),
     category: categoryFor(operation, key, policy),
     free: operation.responses?.[PAYMENT_REQUIRED_STATUS] === undefined,
-    ...(price === undefined ? {} : { mppPrice: price }),
+    ...(mpp === undefined ? {} : { mpp }),
     ...(isPrivateRead ? { sensitive: true } : {}),
     ...(isAgentProhibited ? { agentProhibited: true } : {}),
     parameters: [
@@ -360,7 +370,7 @@ function buildContract(openapi, policy) {
         cataloged: operations.length,
         agentProhibited,
         callable: operations.length - agentProhibited,
-        mpp: operations.filter((operation) => operation.mppPrice !== undefined).length,
+        mpp: operations.filter((operation) => operation.mpp !== undefined).length,
       },
       approvalFreeReads: policy.approvalFreeReads.map((key) => catalogPath(key)),
       blockedOperations: [...policy.excluded, ...placed.eventStreams.map((entry) => entry.key)]

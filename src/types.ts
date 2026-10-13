@@ -25,6 +25,16 @@ interface EndpointInfo {
   readonly summary: string;
 }
 
+/** What an MPP route charges for 1 call, in the token's smallest unit. */
+interface MppOffer {
+  readonly amount: string;
+  /** The token's address, in lower case. */
+  readonly currency: string;
+}
+
+/** Makes a fetch that pays 1 offer and nothing else. */
+type PayingFetch = (offer: Readonly<MppOffer>) => FetchFunction;
+
 interface RequestOptions {
   readonly body?: unknown;
   readonly idempotencyKey?: string;
@@ -80,6 +90,8 @@ export type {
   EventPollerOptions,
   ExploreParams,
   FetchFunction,
+  MppOffer,
+  PayingFetch,
   PluginConfig,
   RequestFunction,
   RequestOptions,

@@ -13,7 +13,7 @@ interface GeneratedOperation {
   readonly category: string;
   readonly free: boolean;
   readonly method: string;
-  readonly mppPrice?: string;
+  readonly mpp?: { readonly amount: string; readonly currency: string; readonly price: string };
   readonly parameters: readonly JsonObject[];
   readonly path: string;
   readonly responseShape: string;
@@ -128,7 +128,7 @@ const CRAFTED_PATHS: JsonObject = {
   '/api/v1/x/analysis/sentiment': { post: stub('Analysis', { responses: { '200': OK_RESPONSE, '402': PAID } }) },
   '/api/v1/x/articles/{tweetId}': {
     get: stub('Articles', {
-      'x-payment-info': { offers: [{ amount: '750', currency: '0xabc', intent: 'charge', method: 'tempo' }] },
+      'x-payment-info': { offers: [{ amount: '750', currency: '0x20C000000000000000000000B9537D11C60E8B50', intent: 'charge', method: 'tempo' }] },
     }),
   },
   '/api/v1/x/tweets': {
@@ -191,7 +191,7 @@ const CRAFTED_PATHS: JsonObject = {
       },
       security: [{ apiKey: [] }, {}],
       tags: ['Tweets'],
-      'x-payment-info': { offers: [{ amount: '150', currency: '0xabc', intent: 'charge', method: 'tempo' }] },
+      'x-payment-info': { offers: [{ amount: '150', currency: '0x20C000000000000000000000B9537D11C60E8B50', intent: 'charge', method: 'tempo' }] },
     },
     parameters: [
       { description: 'Path-level ID.', in: 'path', name: 'id', required: true, schema: { type: 'string' } },
@@ -389,7 +389,7 @@ describe('generate-api-contract', () => {
       category: 'twitter',
       free: false,
       method: 'GET',
-      mppPrice: '$0.00015/call',
+      mpp: { amount: '150', currency: '0x20c000000000000000000000b9537d11c60e8b50', price: '$0.00015/call' },
       parameters: [
         { description: 'Tweet ID or URL.', in: 'path', name: 'id', required: true, type: 'string' },
         { description: 'Fields to keep.', in: 'query', name: 'fields', required: false, type: 'string' },
@@ -437,7 +437,7 @@ describe('generate-api-contract', () => {
     ['GET /api/v1/x/tweets/:id', '$0.00015/call'],
   ])('prices %s from its MPP offer', (key, price) => {
     expect.assertions(1);
-    expect(generated().operations.get(key)?.mppPrice).toBe(price);
+    expect(generated().operations.get(key)?.mpp?.price).toBe(price);
   });
 
   it('marks dashboard-only operations from the policy and from browser-only auth', () => {
@@ -528,7 +528,7 @@ describe('generate-api-contract', () => {
       'an MPP offer has no whole amount',
       withPaths((paths) => {
         paths['/api/v1/launch/pads'] = {
-          get: stub('Launch Pads', { 'x-payment-info': { offers: [{ amount: '1.5', intent: 'charge' }] } }),
+          get: stub('Launch Pads', { 'x-payment-info': { offers: [{ amount: '1.5', currency: '0xabc', intent: 'charge' }] } }),
         };
       }),
       README_WITH_BLOCK,

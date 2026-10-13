@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import PACKAGE from '../package.json' with { type: 'json' };
+import type { FetchFunction, MppOffer, PayingFetch } from './types.js';
 
 type MppModuleName = 'mppx/client' | 'viem/accounts';
 type ModuleLoader = (name: MppModuleName) => Promise<Record<string, unknown>>;
@@ -10,6 +11,15 @@ type ModuleLoader = (name: MppModuleName) => Promise<Record<string, unknown>>;
 const TEMPO_SIGNING_KEY_PATTERN = /^0x[0-9a-fA-F]{64}$/u;
 const MPP_CLIENT_MODULE: MppModuleName = 'mppx/client';
 const VIEM_ACCOUNTS_MODULE: MppModuleName = 'viem/accounts';
+// Payments go to Xquik and nowhere else. Both values are written by hand on
+// purpose, so no spec, catalog or config change can move a payment.
+const MPP_ORIGIN = 'https://xquik.com';
+const MPP_RECIPIENT = '0xbe6c07f6fce303483458a7ddc929eb50a8ae6574';
+const MPP_METHOD = 'tempo';
+const MPP_INTENT = 'charge';
+const WHOLE_AMOUNT_PATTERN = /^\d+$/u;
+const REFUSED_OFFER =
+  'MPP payment refused. The server asked for more than the listed price, or for another currency or recipient.';
 // Names the versions package.json pins, so the hint cannot fall behind them.
 const INSTALL_HINT =
   `Run npm i mppx@${PACKAGE.peerDependencies.mppx} viem@${PACKAGE.peerDependencies.viem}.`;
@@ -38,7 +48,70 @@ function createModuleLoader(): ModuleLoader {
   return loadDynamicModule;
 }
 
-async function initMpp(tempoSigningKey: string, loadModule?: ModuleLoader): Promise<void> {
+function lowerCased(value: unknown): string | undefined {
+  return typeof value === 'string' ? value.toLowerCase() : undefined;
+}
+
+function asksForSplits(request: Readonly<Record<string, unknown>>): boolean {
+  const details = request['methodDetails'];
+  return isRecord(details) && details['splits'] !== undefined;
+}
+
+function isWithinOffer(amount: unknown, offer: Readonly<MppOffer>): boolean {
+  return typeof amount === 'string'
+    && WHOLE_AMOUNT_PATTERN.test(amount)
+    && BigInt(amount) <= BigInt(offer.amount);
+}
+
+// True when the request asks for the offer or less, in the offer's currency,
+// for Xquik alone.
+function isListedRequest(request: Readonly<Record<string, unknown>>, offer: Readonly<MppOffer>): boolean {
+  return isWithinOffer(request['amount'], offer)
+    && lowerCased(request['currency']) === offer.currency
+    && lowerCased(request['recipient']) === MPP_RECIPIENT
+    && !asksForSplits(request);
+}
+
+function assertListedOffer(challenge: unknown, offer: Readonly<MppOffer>): void {
+  const request = isRecord(challenge) ? challenge['request'] : undefined;
+  const listed = isRecord(challenge)
+    && challenge['method'] === MPP_METHOD
+    && challenge['intent'] === MPP_INTENT
+    && isRecord(request)
+    && isListedRequest(request, offer);
+  if (!listed) throw new Error(REFUSED_OFFER);
+}
+
+/** Sends a request to the Xquik host and refuses every other host. */
+function xquikOnly(baseFetch: FetchFunction): FetchFunction {
+  return async (input, init) => {
+    const url = new URL(input instanceof Request ? input.url : String(input));
+    if (url.origin !== MPP_ORIGIN) {
+      throw new Error('MPP payment refused. TweetClaw pays on the Xquik host only.');
+    }
+    return baseFetch(input, init);
+  };
+}
+
+function asFetch(client: unknown): FetchFunction {
+  const pay = isRecord(client) ? client['fetch'] : undefined;
+  if (!isCallable(pay)) throw new Error('mppx export is invalid: Mppx.create');
+  return async (input, init) => {
+    const response = await pay(input, init);
+    if (!(response instanceof Response)) throw new TypeError('mppx returned no response.');
+    return response;
+  };
+}
+
+/**
+ * Prepares MPP payments and returns a maker of paying fetches. Each paying
+ * fetch settles 1 offer for 1 request to the Xquik host.
+ */
+async function initMpp(
+  tempoSigningKey: string,
+  baseFetch: FetchFunction,
+  loadModule?: ModuleLoader,
+): Promise<PayingFetch> {
   if (!TEMPO_SIGNING_KEY_PATTERN.test(tempoSigningKey)) {
     throw new Error('MPP signing key is invalid. Use a 0x-prefixed 32-byte hex key.');
   }
@@ -51,18 +124,31 @@ async function initMpp(tempoSigningKey: string, loadModule?: ModuleLoader): Prom
     throw new Error(`viem is missing. ${INSTALL_HINT}`);
   });
   if (!isCallable(viemMod['privateKeyToAccount'])) throw new Error('viem export is missing: privateKeyToAccount');
-  if (!isCallable(mppxMod['tempo'])) throw new Error('mppx export is missing: tempo');
+  const { tempo } = mppxMod;
+  if (!isCallable(tempo)) throw new Error('mppx export is missing: tempo');
   if (!isRecord(mppxMod['Mppx'])) throw new Error('mppx export is missing: Mppx');
-  const createMethod: unknown = mppxMod['Mppx']['create'];
-  if (!isCallable(createMethod)) throw new Error('mppx export is invalid: Mppx.create');
+  const createClient: unknown = mppxMod['Mppx']['create'];
+  if (!isCallable(createClient)) throw new Error('mppx export is invalid: Mppx.create');
   let account: unknown;
   try {
     account = viemMod['privateKeyToAccount'](tempoSigningKey);
   } catch {
     throw new Error('MPP signing key is invalid. Use a 0x-prefixed 32-byte hex key.');
   }
-  const method: unknown = mppxMod['tempo']({ account });
-  createMethod({ methods: [method] });
+
+  return (offer) => asFetch(createClient({
+    fetch: xquikOnly(baseFetch),
+    // 1 payment for 1 request. A second challenge ends the request.
+    maxPaymentRetries: 1,
+    methods: [tempo({ account, expectedRecipients: [MPP_RECIPIENT] })],
+    onChallenge: (challenge: unknown, helpers: unknown): unknown => {
+      assertListedOffer(challenge, offer);
+      const createCredential = isRecord(helpers) ? helpers['createCredential'] : undefined;
+      if (!isCallable(createCredential)) throw new Error('mppx export is invalid: createCredential');
+      return createCredential();
+    },
+    polyfill: false,
+  }));
 }
 
 export { createModuleLoader, initMpp, isCallable, isRecord };

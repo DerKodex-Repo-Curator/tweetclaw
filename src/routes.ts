@@ -42,11 +42,8 @@ function hasDotSegment(segment: string): boolean {
     || unescaped.split(/[/\\]/u).some((part) => part === '.' || part === '..');
 }
 
-// A path is plain when a URL parser sends it exactly as written. Backslashes,
-// dot segments, spaces and control characters all make the parser rewrite it,
-// so the route that was checked would not be the route that is called. An
-// escaped dot segment inside a path value is refused too, because a server may
-// unescape it.
+// A path is plain when a URL parser sends it exactly as written and no segment
+// holds a dot segment.
 function isPlainPath(path: string): boolean {
   return new URL(path, PARSER_ORIGIN).pathname === path
     && !path.split('/').some((segment) => hasDotSegment(segment));
