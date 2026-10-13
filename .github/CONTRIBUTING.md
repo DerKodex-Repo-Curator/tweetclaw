@@ -19,6 +19,7 @@ npm run check:all
 - Update `SKILL.md` for agent-facing behavior.
 - Update public guides when setup or API coverage changes.
 - Do not hand-edit `generated-api-contract.json` or release history.
+- Run `npm run generate-api-contract` after the Xquik API changes.
 - Run `npm run check:all` before every commit and push.
 
 ## Submit

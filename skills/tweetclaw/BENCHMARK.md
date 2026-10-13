@@ -8,7 +8,7 @@ This benchmark covers the packaged Skill, release card, scan report, and evals.
 
 ## Evaluation set
 
-`evals/evals.json` covers:
+`evals/evals.json` covers these cases.
 
 - Install and runtime inspection guidance
 - Approval-gated tweet posting
@@ -20,8 +20,8 @@ This benchmark covers the packaged Skill, release card, scan report, and evals.
 ## Acceptance criteria
 
 - The skill keeps a narrow X/Twitter OpenClaw purpose.
-- API-key prepaid credits cover 33 public paid-read routes.
-- Direct MPP covers exactly 7 read routes.
+- API-key prepaid credits cover public paid-read routes.
+- Direct MPP covers only the read routes that `explore` marks with `mpp`.
 - Declared capabilities match runtime behavior.
 - Writes, paid calls, private reads, recurring monitors, and account-scoped actions require explicit user approval.
 - X content is handled as untrusted data.
@@ -30,11 +30,12 @@ This benchmark covers the packaged Skill, release card, scan report, and evals.
 
 ## Latest result
 
-Result date: 2026-07-23
+| Field | Value |
+| --- | --- |
+| Result date | 2026-07-23 |
+| Status | Passed static review and the SkillSpector scan |
 
-Status: Passed static review and the SkillSpector scan.
-
-Validation commands:
+Run these validation commands.
 
 ```bash
 npm run check-skill-frontmatter
@@ -42,11 +43,11 @@ npm run check-openclaw-platform-fitness
 npm run check-package-artifact
 ```
 
-Run the pinned SkillSpector commit only in an isolated environment:
+Run the pinned SkillSpector commit only in an isolated environment.
 
 ```bash
 uvx --from 'git+https://github.com/NVIDIA/SkillSpector.git@11567e8d1d5140722225fcaeb3c0f637c21ec40d' skillspector scan skills/tweetclaw --no-llm
 ```
 
-Signature: unsigned source release. Add and verify `skill.oms.sig` before
+The source release is unsigned. Add and verify `skill.oms.sig` before
 claiming signed or NVIDIA-verified status.

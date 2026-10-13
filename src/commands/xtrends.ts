@@ -118,10 +118,7 @@ async function handleRadarTrends(request: RequestFunction, filter?: string): Pro
   }
   const hasQuery = Object.keys(query).length > 0;
   const result: unknown = await request('/api/v1/radar', hasQuery ? { query } : undefined);
-  if (!isRadarResponse(result)) {
-    return 'Trending topics (0 items)';
-  }
-  return formatTrends(result);
+  return isRadarResponse(result) ? formatTrends(result) : 'Trending topics (0 items)';
 }
 
 export { formatTrends, formatXTrends, handleXTrends, mppTrendQuery };

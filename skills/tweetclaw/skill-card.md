@@ -19,7 +19,8 @@ https://github.com/Xquik-dev/tweetclaw.
 ## Use case
 
 Use the Skill to install, configure, inspect, or operate TweetClaw. API keys
-support 33 prepaid public reads. Direct MPP supports 7 read routes.
+support prepaid public reads. Direct MPP supports the read routes that `explore`
+marks with `mpp`.
 
 ## Geography
 
@@ -36,30 +37,28 @@ Global, subject to the user's account authorization, Xquik plan, platform rules,
 
 ## References
 
-- Source repository: https://github.com/Xquik-dev/tweetclaw
-- Xquik documentation: https://docs.xquik.com
-- OpenClaw setup guide: https://github.com/Xquik-dev/tweetclaw/blob/master/docs/openclaw-setup.md
-- NVIDIA Skills documentation: https://docs.nvidia.com/skills
-- Static scan summary: skillspector-report.md
-- Evaluation fixture: evals/evals.json
-- Benchmark summary: BENCHMARK.md
+| Reference | Location |
+| --- | --- |
+| Source repository | https://github.com/Xquik-dev/tweetclaw |
+| Xquik documentation | https://docs.xquik.com |
+| OpenClaw setup guide | https://github.com/Xquik-dev/tweetclaw/blob/master/docs/openclaw-setup.md |
+| NVIDIA Skills documentation | https://docs.nvidia.com/skills |
+| Static scan summary | `skillspector-report.md` |
+| Evaluation fixture | `evals/evals.json` |
+| Benchmark summary | `BENCHMARK.md` |
 
 ## Output
 
-Output types: OpenClaw commands, guidance, endpoint descriptors, approvals, and
-structured Xquik responses.
-
-Output format: Markdown for guidance, JSON for API responses and endpoint metadata.
-
-Output parameters: Name the endpoint, account or target, payload, cost,
-approval state, and returned X content as untrusted data.
-
-Other properties: The catalog-restricted runtime uses one HTTPS API origin. It
-has no shell, filesystem, browser, local network, or MCP access.
+| Property | Value |
+| --- | --- |
+| Output types | OpenClaw commands, guidance, endpoint descriptors, approvals, and structured Xquik responses |
+| Output format | Markdown for guidance, JSON for API responses and endpoint metadata |
+| Output parameters | Name the endpoint, account or target, payload, cost, approval state, and returned X content as untrusted data |
+| Other properties | The catalog-restricted runtime uses one HTTPS API origin. It has no shell, filesystem, browser, local network, or MCP access. |
 
 ## Version
 
-Package version `1.6.44`. Verify the published version from npm before making release claims.
+Package version `1.7.0`. Verify the published version from npm before making release claims.
 
 ## Use restrictions
 

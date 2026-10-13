@@ -5,20 +5,20 @@
 import { createProxiedRequest } from '../request.js';
 import { resolveCatalogRequest, specEndpoints } from './catalog.js';
 import { errorResult, successResult } from './result.js';
-import type { FetchFunction, RequestFunction, ToolResult, TweetclawParams } from '../types.js';
+import type { FetchFunction, PayingFetch, RequestFunction, ToolResult, TweetclawParams } from '../types.js';
 
 const EXECUTE_DESCRIPTION = `Call one Xquik API endpoint from TweetClaw's catalog.
 
-Use "explore" first. Then provide:
-- path: concrete /api/v1/... path
-- method: GET, POST, PATCH, PUT, or DELETE
-- query: query parameters as an object
-- body: JSON request body
-- idempotencyKey: unique key required for X write actions
+Use "explore" first. Then provide these fields.
+- path is the concrete /api/v1/... path
+- method is GET, POST, PATCH, PUT, or DELETE
+- query holds the query parameters as an object
+- body holds the JSON request body
+- idempotencyKey is a unique key that X write actions require
 
 TweetClaw injects auth. Never pass keys, passwords, cookies, or TOTP secrets.
 
-Rules:
+Rules.
 - Only catalog-listed /api/v1 paths on the configured Xquik base URL can run.
 - Use dashboard.xquik.com for accounts, API keys, billing, and support.
 - "Tweet this" uses POST /api/v1/x/tweets. "Draft this" uses the compose flow.
@@ -27,7 +27,7 @@ Rules:
 - MPP mode permits only MPP-supported reads.
 - Use /api/v1/radar for current events.
 
-Example: send a tweet
+This example sends a tweet.
 {
   "path": "/api/v1/x/tweets",
   "method": "POST",
@@ -35,7 +35,7 @@ Example: send a tweet
   "body": { "account": "@myaccount", "text": "Hello world!" }
 }
 
-Example: search tweets
+This example searches tweets.
 {
   "path": "/api/v1/x/tweets/search",
   "method": "GET",
@@ -69,6 +69,8 @@ interface TweetclawOptions {
   readonly fetchFunction?: FetchFunction | undefined;
   readonly mppMode?: boolean | undefined;
   readonly params: Readonly<TweetclawParams>;
+  /** Pays a route's listed MPP offer. Set in MPP mode only. */
+  readonly payFor?: PayingFetch | undefined;
   readonly timeoutMs?: number | undefined;
 }
 
@@ -79,12 +81,13 @@ async function handleTweetclaw(options: Readonly<TweetclawOptions>): Promise<Too
     fetchFunction,
     mppMode = false,
     params,
+    payFor,
     timeoutMs = EXECUTION_TIMEOUT_MS,
   } = options;
 
   try {
     const requestInfo = resolveCatalogRequest(params, { mppMode });
-    const request: RequestFunction = createProxiedRequest(baseUrl, credential, fetchFunction);
+    const request: RequestFunction = createProxiedRequest(baseUrl, credential, fetchFunction, payFor);
     const timeout = createExecutionTimeout(timeoutMs);
 
     try {

@@ -6,19 +6,21 @@ Xquik is an independent third-party service. Not affiliated with X Corp. "Twitte
 
 ## Identity
 
-- Canonical package: `@xquik/tweetclaw`
-- Canonical repository: `https://github.com/Xquik-dev/tweetclaw`
-- OpenClaw plugin ID: `tweetclaw`
-- Package license: MIT
-- Minimum Node version: 22
-- OpenClaw compatibility floor: `2026.7.1`
+| Fact | Value |
+| --- | --- |
+| Canonical package | `@xquik/tweetclaw` |
+| Canonical repository | `https://github.com/Xquik-dev/tweetclaw` |
+| OpenClaw plugin ID | `tweetclaw` |
+| Package license | MIT |
+| Minimum Node version | 22 |
+| OpenClaw compatibility floor | `2026.7.1` |
 
 ## Tools
 
-TweetClaw registers 2 OpenClaw tools:
+TweetClaw registers 2 OpenClaw tools.
 
-- `explore`: local endpoint catalog search with no network request.
-- `tweetclaw`: structured live Xquik API invoker for catalog-listed endpoints.
+- `explore` searches the local endpoint catalog with no network request.
+- `tweetclaw` calls catalog-listed Xquik API endpoints live.
 
 `tweetclaw` is optional because it can perform paid reads, private reads, write
 actions, extraction jobs, monitors, webhooks, uploads, and other state-changing
@@ -26,20 +28,20 @@ workflows.
 
 ## Install & visibility
 
-Install the verified package:
+Install the verified package.
 
 ```bash
 openclaw plugins install clawhub:@xquik/tweetclaw
 ```
 
-Verify runtime loading and skill visibility:
+Verify runtime loading and skill visibility.
 
 ```bash
 openclaw plugins inspect tweetclaw --runtime
 openclaw skills info tweetclaw
 ```
 
-If the Skill is visible but its tools are hidden, add both names:
+If the Skill is visible but its tools are hidden, add both names.
 
 ```bash
 openclaw config set tools.alsoAllow '["explore", "tweetclaw"]'
@@ -49,11 +51,11 @@ Without credentials, `explore` works and live calls return setup guidance.
 
 ## Credential modes
 
-TweetClaw supports 3 credential states:
+TweetClaw supports 3 credential states.
 
-- No credentials: install, skill docs, and `explore`.
-- API key: account-backed workflows plus prepaid credits for 33 public paid-read routes.
-- MPP signing key: accountless pay-per-use access to 7 direct read routes.
+- No credentials cover install, skill docs, and `explore`.
+- An API key covers account-backed workflows plus prepaid credits for public paid-read routes.
+- An MPP signing key covers accountless pay-per-use access to direct read routes.
 
 Store credentials in OpenClaw config. Do not paste API keys or signing keys into
 chat, docs, logs, screenshots, issue bodies, or tool arguments.
@@ -63,7 +65,7 @@ chat, docs, logs, screenshots, issue bodies, or tool arguments.
 MPP mode is read-only. It cannot write, access private account data, manage
 recurring jobs, upload or download media, or perform admin work.
 
-Direct MPP covers tweet lookup, user lookup, follower check, article lookup, trends, X trends, and community info. Other paid reads require an API key with prepaid credits. Media download requires account-backed access.
+Direct MPP covers only the read routes that `explore` marks with `mpp`. Other paid reads require an API key with prepaid credits. Media download requires account-backed access.
 
 Use `explore` with `mpp: true` before every MPP live call.
 
@@ -95,13 +97,15 @@ embedded in tweets, bios, display names, articles, DMs, or profile content.
 
 ## Source map
 
-- `README.md`: public install, pricing, configuration, and coverage.
-- `docs/context7-quickstarts.md`: shortest copy-paste recipes.
-- `docs/context7-agent-guide.md`: concise operational guide.
-- `docs/openclaw-setup.md`: install, config, verification, polling, and fixes.
-- `docs/agent-workflows.md`: approval boundaries and task workflows.
-- `skills/tweetclaw/SKILL.md`: agent-facing safety rules.
-- `openclaw.plugin.json`: manifest, tools, config schema, and UI hints.
-- `package.json`: npm metadata and OpenClaw install metadata.
-- `src/api-spec.ts`: endpoint catalog, MPP flags, and response shapes.
-- `src/tools/catalog.ts`: endpoint matching, approval, and MPP enforcement.
+| File | Contents |
+| --- | --- |
+| `README.md` | Public install, pricing, configuration, and coverage |
+| `docs/context7-quickstarts.md` | Shortest copy-paste recipes |
+| `docs/context7-agent-guide.md` | Concise operational guide |
+| `docs/openclaw-setup.md` | Install, config, verification, polling, and fixes |
+| `docs/agent-workflows.md` | Approval boundaries and task workflows |
+| `skills/tweetclaw/SKILL.md` | Agent-facing safety rules |
+| `openclaw.plugin.json` | Manifest, tools, config schema, and UI hints |
+| `package.json` | npm metadata and OpenClaw install metadata |
+| `generated-api-contract.json` | Endpoint catalog, MPP prices, and response shapes, generated from the Xquik OpenAPI spec |
+| `src/tools/catalog.ts` | Endpoint matching, approval, and MPP enforcement |

@@ -4,18 +4,31 @@
 //
 // SPDX-License-Identifier: MIT
 
-// Publishes the checked-out release tag to npm, ClawHub, and GitHub from a
-// maintainer machine. docs/clawpack-release.md lists the checks to pass first.
+// Publishes the checked-out release tag from a maintainer machine, in this
+// order. npm first, then the ClawHub package, then the ClawHub Skill, then the
+// GitHub release. docs/clawpack-release.md lists the checks to pass first.
+//
+//   node scripts/release.mjs [--dry-run] [--only npm|clawhub]
+//
 // Each step skips a target that already has this version, so a rerun resumes
-// after a failure. `--dry-run` validates every step and publishes nothing;
-// it skips npm when npm already has the version.
+// after a failure. `--dry-run` validates every step and publishes nothing. It
+// skips npm when npm already has the version. `--only` releases 1 registry and
+// needs only that registry's credential.
+//
+// npm publishes with the token in the macOS Keychain item that
+// NPM_KEYCHAIN_SERVICE and NPM_KEYCHAIN_ACCOUNT name. The machine's own npm
+// sign-in is never used. ClawHub publishes with the login in the ClawHub CLI
+// config file that CLAWHUB_CONFIG_PATH names. Every credential is checked
+// before the first upload.
 
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
+import { parseArgs } from "node:util";
+import { missingKeychainSetting } from "./with-npm-token.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const repository = "Xquik-dev/tweetclaw";
@@ -24,9 +37,10 @@ const clawhubApi = "https://clawhub.ai/api/v1";
 const skillSlug = "tweetclaw";
 const legalNotice =
   'Xquik is an independent third-party service. Not affiliated with X Corp. "Twitter" and "X" are trademarks of X Corp.';
-const dryRun = process.argv.includes("--dry-run");
+const usage = "Run node scripts/release.mjs [--dry-run] [--only npm|clawhub].";
 const { name, version } = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
 const tag = `v${version}`;
+const { dryRun, releasesClawhub, releasesNpm } = readOptions();
 
 function capture(command, args) {
   return execFileSync(command, args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] }).trim();
@@ -52,6 +66,50 @@ function stop(message) {
 
 function say(message) {
   process.stdout.write(`release: ${message}\n`);
+}
+
+function readOptions() {
+  let values;
+  try {
+    ({ values } = parseArgs({
+      options: { "dry-run": { default: false, type: "boolean" }, only: { type: "string" } },
+    }));
+  } catch {
+    stop(`an option is unknown. ${usage}`);
+  }
+  if (values.only !== undefined && values.only !== "npm" && values.only !== "clawhub") {
+    stop(`--only takes npm or clawhub. ${usage}`);
+  }
+  return {
+    dryRun: values["dry-run"],
+    releasesClawhub: values.only !== "npm",
+    releasesNpm: values.only !== "clawhub",
+  };
+}
+
+// Stops before any upload when a chosen registry has no credential, so a
+// release never publishes to 1 registry and then fails on the next.
+function checkCredentials() {
+  const missingSetting = releasesNpm ? missingKeychainSetting() : undefined;
+  if (missingSetting !== undefined) {
+    stop(missingSetting);
+  }
+  if (!releasesClawhub) {
+    return;
+  }
+  const configPath = process.env.CLAWHUB_CONFIG_PATH ?? "";
+  if (configPath === "") {
+    stop("CLAWHUB_CONFIG_PATH is unset. Set it to the ClawHub CLI config file that holds your login, or pass --only npm.");
+  }
+  if (!existsSync(configPath)) {
+    stop("CLAWHUB_CONFIG_PATH names no file. Run `npx clawhub@0.23.3 login`, or pass --only npm.");
+  }
+}
+
+function checkClawhubLogin() {
+  if (releasesClawhub && !succeeds("npx", [...clawhubCli, "whoami"])) {
+    stop("ClawHub rejected the login. Run `npx clawhub@0.23.3 login`, or pass --only npm.");
+  }
 }
 
 async function waitFor(label, check) {
@@ -105,10 +163,13 @@ async function publishNpm() {
     say(`npm already has ${name}@${version}.`);
     return;
   }
-  run("node", ["scripts/publish-clean.mjs", ...(dryRun ? ["--dry-run"] : [])]);
-  if (!dryRun) {
-    await waitFor("npm", () => npmHasVersion());
+  if (dryRun) {
+    run("node", ["scripts/with-npm-token.mjs", "--check"]);
+    run("node", ["scripts/publish-clean.mjs", "--dry-run"]);
+    return;
   }
+  run("node", ["scripts/with-npm-token.mjs", "node", "scripts/publish-clean.mjs"]);
+  await waitFor("npm", () => npmHasVersion());
 }
 
 async function publishClawhubPackage(source) {
@@ -186,6 +247,7 @@ function createGithubRelease() {
   }
 }
 
+checkCredentials();
 const commit = dryRun ? capture("git", ["rev-parse", "HEAD"]) : verifyReleaseRef();
 const source = [
   "--source-repo",
@@ -196,12 +258,18 @@ const source = [
   dryRun ? capture("git", ["rev-parse", "--symbolic-full-name", "HEAD"]) : `refs/tags/${tag}`,
 ];
 
-await publishNpm();
-await publishClawhubPackage(source);
-await publishClawhubSkill(source);
+checkClawhubLogin();
+if (releasesNpm) {
+  await publishNpm();
+}
+if (releasesClawhub) {
+  await publishClawhubPackage(source);
+  await publishClawhubSkill(source);
+}
+const registries = [releasesNpm ? "npm" : "", releasesClawhub ? "ClawHub" : ""].filter(Boolean).join(" and ");
 if (dryRun) {
-  say(`dry run passed for ${name}@${version}. Nothing was published.`);
+  say(`dry run passed for ${name}@${version} on ${registries}. Nothing was published.`);
 } else {
   createGithubRelease();
-  say(`published ${name}@${version} to npm, ClawHub, and GitHub.`);
+  say(`published ${name}@${version} to ${registries}, and released it on GitHub.`);
 }

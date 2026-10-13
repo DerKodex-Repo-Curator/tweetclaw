@@ -437,7 +437,7 @@ describe('register', () => {
 
   it('logs MPP success when initMpp succeeds', async () => {
     expect.assertions(1);
-    vi.spyOn(mpp, 'initMpp').mockResolvedValue();
+    vi.spyOn(mpp, 'initMpp').mockImplementation(async (_key, baseFetch) => () => baseFetch);
     const infos: string[] = [];
     const { api } = createMockApi({ tempoSigningKey: VALID_SIGNING_KEY });
     const apiWithInfos = {
@@ -472,7 +472,10 @@ describe('register', () => {
     const initialization = new Promise<void>((resolve) => {
       finishInitialization = resolve;
     });
-    vi.spyOn(mpp, 'initMpp').mockReturnValue(initialization);
+    vi.spyOn(mpp, 'initMpp').mockImplementation(async (_key, baseFetch) => {
+      await initialization;
+      return () => baseFetch;
+    });
     const mockFetch = vi.fn(createMockFetch({ items: [], total: 0, trends: [], woeid: 1 }));
     const { api, commands, tools } = createMockApi({ tempoSigningKey: VALID_SIGNING_KEY });
     register(api, mockFetch);

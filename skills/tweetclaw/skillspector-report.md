@@ -2,9 +2,14 @@
 
 Xquik is an independent third-party service. Not affiliated with X Corp. "Twitter" and "X" are trademarks of X Corp.
 
-Scan target: `skills/tweetclaw`
-
-Scanner: NVIDIA SkillSpector v2.4.1 at commit `11567e8d1d5140722225fcaeb3c0f637c21ec40d` from https://github.com/NVIDIA/SkillSpector
+| Field | Value |
+| --- | --- |
+| Scan target | `skills/tweetclaw` |
+| Scanner | NVIDIA SkillSpector v2.4.1 at commit `11567e8d1d5140722225fcaeb3c0f637c21ec40d` from https://github.com/NVIDIA/SkillSpector |
+| Latest recorded scan | 2026-07-23 18:40 UTC |
+| Latest recorded result | Score `0/100`, severity `LOW`, recommendation `SAFE` |
+| Findings | None |
+| Executable scripts in skill directory | None |
 
 Run the reviewed commit only in an isolated environment. Never execute mutable repository HEAD.
 
@@ -12,15 +17,7 @@ Run the reviewed commit only in an isolated environment. Never execute mutable r
 uvx --from 'git+https://github.com/NVIDIA/SkillSpector.git@11567e8d1d5140722225fcaeb3c0f637c21ec40d' skillspector scan skills/tweetclaw --no-llm
 ```
 
-Latest recorded scan: 2026-07-23 18:40 UTC.
-
-Latest recorded result: score `0/100`, severity `LOW`, recommendation `SAFE`.
-
-Findings: none.
-
-Executable scripts in skill directory: none.
-
-Scanned components:
+The scan covered these components.
 
 - `BENCHMARK.md`
 - `SKILL.md`

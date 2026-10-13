@@ -2,86 +2,37 @@
 //
 // SPDX-License-Identifier: MIT
 
-import { API_SPEC } from '../api-spec.js';
+import { API_SPEC, APPROVAL_FREE_READS } from '../api-spec.js';
+import { IDEMPOTENCY_KEY_HEADER } from '../request.js';
+import { apiPathProblem, findRoute, matchesEndpointPath } from '../routes.js';
 import type { EndpointInfo, ExploreParams, TweetclawParams } from '../types.js';
 
-const API_V1_PREFIX = '/api/v1/';
 const DEFAULT_EXPLORE_LIMIT = 25;
 const MAX_EXPLORE_LIMIT = 100;
 const MAX_IDEMPOTENCY_KEY_LENGTH = 255;
 const VISIBLE_ASCII_FIRST = '!';
 const VISIBLE_ASCII_LAST = '~';
 
-const PRIVATE_GET_PATHS = new Set([
-  '/api/v1/account',
-  '/api/v1/credits',
-  '/api/v1/x/accounts',
-]);
-
-const PRIVATE_GET_PREFIXES = [
-  '/api/v1/drafts',
-  '/api/v1/draws',
-  '/api/v1/events',
-  '/api/v1/extractions',
-  '/api/v1/monitors',
-  '/api/v1/styles',
-  '/api/v1/webhooks',
-  '/api/v1/x/accounts/',
-  '/api/v1/x/bookmarks',
-  '/api/v1/x/dm/',
-  '/api/v1/x/notifications',
-  '/api/v1/x/timeline',
-  '/api/v1/x/write-actions/',
-];
-
 const specEndpoints = API_SPEC.filter((endpoint) => endpoint.agentProhibited !== true);
 
-function normalizeMethod(method?: string): string {
-  return (method ?? 'GET').toUpperCase();
+function normalizeMethod(method = 'GET'): string {
+  return method.toUpperCase();
 }
 
 function normalizeLimit(limit?: number): number {
-  if (limit === undefined || !Number.isFinite(limit)) {
-    return DEFAULT_EXPLORE_LIMIT;
-  }
-  return Math.min(Math.max(Math.trunc(limit), 1), MAX_EXPLORE_LIMIT);
-}
-
-function pathSegments(path: string): readonly string[] {
-  const normalized = path.endsWith('/') ? path.slice(0, -1) : path;
-  return normalized.split('/');
-}
-
-function matchesEndpointPath(endpointPath: string, requestPath: string): boolean {
-  if (endpointPath === requestPath) return true;
-  const endpointSegments = pathSegments(endpointPath);
-  const requestSegments = pathSegments(requestPath);
-  if (endpointSegments.length !== requestSegments.length) return false;
-
-  return endpointSegments.every((segment, index) => {
-    const requestSegment = String(requestSegments.at(index));
-    return segment.startsWith(':') ? requestSegment.length > 0 : segment === requestSegment;
-  });
-}
-
-function assertSafePath(path: string): void {
-  if (!path.startsWith(API_V1_PREFIX)) {
-    throw new Error(`Path is outside /api/v1/. Use a catalog-listed API path: ${path}`);
-  }
-  if (path.includes('?') || path.includes('#')) {
-    throw new Error('Pass query parameters through the query object, not in the path.');
-  }
+  return limit === undefined || !Number.isFinite(limit)
+    ? DEFAULT_EXPLORE_LIMIT
+    : Math.min(Math.max(Math.trunc(limit), 1), MAX_EXPLORE_LIMIT);
 }
 
 function findEndpoint(method: string, path: string): EndpointInfo | undefined {
-  return specEndpoints.find(
-    (endpoint) => endpoint.method === method && matchesEndpointPath(endpoint.path, path),
-  );
+  return findRoute(method, path)?.endpoint;
 }
 
 function normalizeQuery(query?: Readonly<Record<string, boolean | number | string>>): Readonly<Record<string, string>> | undefined {
-  if (query === undefined) return undefined;
-  return Object.fromEntries(Object.entries(query).map(([key, value]) => [key, String(value)]));
+  return query === undefined
+    ? undefined
+    : Object.fromEntries(Object.entries(query).map(([key, value]) => [key, String(value)]));
 }
 
 function isVisibleAscii(value: string): boolean {
@@ -91,11 +42,18 @@ function isVisibleAscii(value: string): boolean {
   return true;
 }
 
+function requiresIdempotencyKey(endpoint: Readonly<EndpointInfo>): boolean {
+  return endpoint.parameters.some(
+    (parameter) =>
+      parameter.in === 'header' && parameter.name === IDEMPOTENCY_KEY_HEADER && parameter.required,
+  );
+}
+
 function validateWriteIdempotencyKey(
   endpoint: Readonly<EndpointInfo>,
   idempotencyKey: string | undefined,
 ): void {
-  if (endpoint.category !== 'x-write') return;
+  if (!requiresIdempotencyKey(endpoint)) return;
   if (
     idempotencyKey === undefined
     || idempotencyKey.length === 0
@@ -108,18 +66,16 @@ function validateWriteIdempotencyKey(
   }
 }
 
+// Every call asks first, except the free public reads the contract names. A
+// path outside the catalog needs no prompt, because the tool refuses it.
 function requestNeedsApproval(method: string, path: string): boolean {
   if (method !== 'GET') {
     return true;
   }
 
   const endpoint = findEndpoint(method, path);
-  if (endpoint?.free === false || endpoint?.sensitive === true) {
-    return true;
-  }
-
-  return PRIVATE_GET_PATHS.has(path)
-    || PRIVATE_GET_PREFIXES.some((prefix) => path.startsWith(prefix));
+  return endpoint !== undefined
+    && !APPROVAL_FREE_READS.has(`${endpoint.method} ${endpoint.path}`);
 }
 
 function resolveCatalogRequest(
@@ -135,7 +91,10 @@ function resolveCatalogRequest(
 } {
   const method = normalizeMethod(params.method);
   const { body, idempotencyKey, path } = params;
-  assertSafePath(path);
+  const pathProblem = apiPathProblem(path);
+  if (pathProblem !== undefined) {
+    throw new Error(pathProblem);
+  }
   const endpoint = findEndpoint(method, path);
   if (endpoint === undefined) {
     throw new Error(`Endpoint is not in the TweetClaw catalog. Choose a route returned by explore: ${method} ${path}`);
@@ -156,7 +115,7 @@ function resolveCatalogRequest(
   };
 }
 
-function endpointMatchesQuery(endpoint: (typeof API_SPEC)[number], query: string): boolean {
+function endpointMatchesQuery(endpoint: Readonly<EndpointInfo>, query: string): boolean {
   const normalized = query.toLowerCase();
   const { category, method, parameters, path, responseShape, summary } = endpoint;
   const haystack = [

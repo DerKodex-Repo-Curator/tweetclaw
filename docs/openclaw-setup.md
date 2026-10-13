@@ -6,16 +6,16 @@ Xquik is an independent third-party service. Not affiliated with X Corp. "Twitte
 
 ## Plugin tools
 
-TweetClaw registers 2 structured tools:
+TweetClaw registers 2 structured tools.
 
-- `explore`: free local catalog search with no network request.
-- `tweetclaw`: live endpoint invoker for catalog-listed Xquik API paths.
+- `explore` searches the local catalog for free, with no network request.
+- `tweetclaw` calls catalog-listed Xquik API paths live.
 
 Without credentials, `explore` works and live calls return setup guidance.
 
 ## Install
 
-Install the verified ClawHub listing:
+Install the verified ClawHub listing.
 
 ```bash
 openclaw plugins install clawhub:@xquik/tweetclaw
@@ -33,13 +33,13 @@ of `openclaw plugins install` or `openclaw plugins update`.
 
 ## Update
 
-Update through the tracked source:
+Update through the tracked source.
 
 ```bash
 openclaw plugins update tweetclaw
 ```
 
-For reproducible production installs, pin a published npm version:
+For reproducible production installs, pin a published npm version.
 
 ```bash
 openclaw plugins install npm:@xquik/tweetclaw@<version> --pin
@@ -50,14 +50,14 @@ return to the stable release line.
 
 ## Verify runtime loading
 
-After install or update, inspect the runtime and bundled skill:
+After install or update, inspect the runtime and bundled skill.
 
 ```bash
 openclaw plugins inspect tweetclaw --runtime --json
 openclaw skills info tweetclaw
 ```
 
-Confirm:
+Confirm these items.
 
 - The `tweetclaw` plugin loads.
 - The `explore` tool is available.
@@ -68,7 +68,7 @@ Confirm:
 
 If the Gateway does not reload automatically, run `openclaw gateway restart`.
 
-For packaged release checks, validate the installed artifact instead of the source checkout:
+For packaged release checks, validate the installed artifact instead of the source checkout.
 
 ```bash
 npm pack
@@ -80,7 +80,7 @@ Generated metadata checks target simple `defineToolPlugin` packages. TweetClaw
 uses `definePluginEntry` for tools, commands, approvals, and polling. The packed
 artifact smoke test is the local release proof.
 
-Maintainers should also run the deterministic source gate after building:
+Maintainers should also run the deterministic source gate after building.
 
 ```bash
 npm run check-openclaw-platform-fitness
@@ -90,7 +90,7 @@ The gate checks package metadata, runtime entries, tool ownership, approvals,
 commands, documentation, and the packaged Skill.
 
 For slow install or inspect debugging, keep machine-readable output and send
-lifecycle timings to stderr:
+lifecycle timings to stderr.
 
 ```bash
 OPENCLAW_PLUGIN_LIFECYCLE_TRACE=1 openclaw plugins inspect tweetclaw --runtime --json
@@ -98,7 +98,7 @@ OPENCLAW_PLUGIN_LIFECYCLE_TRACE=1 openclaw plugins inspect tweetclaw --runtime -
 
 ## Enable live API calls
 
-If the Skill is visible but its tools are not, add both names:
+If the Skill is visible but its tools are not, add both names.
 
 ```bash
 openclaw config set tools.alsoAllow '["explore", "tweetclaw"]'
@@ -108,7 +108,7 @@ Use `tools.alsoAllow` to preserve the current tool profile.
 
 ## Approval model
 
-TweetClaw uses 2 distinct gates:
+TweetClaw uses 2 distinct gates.
 
 - `tweetclaw` is optional so the model does not see the live endpoint invoker
   until the user opts in.
@@ -117,37 +117,37 @@ TweetClaw uses 2 distinct gates:
 
 TweetClaw requests approval for write-like, private, paid, recurring,
 extraction, monitor, webhook, and account-scoped calls. Approval prompts offer
-one-time approval or deny; they do not offer persistent trust for future
+one-time approval or deny. They do not offer persistent trust for future
 social-account actions.
 
 ## Credential modes
 
-TweetClaw has 3 modes:
+TweetClaw has 3 modes.
 
 | Mode | Required config | Use it for |
 |------|-----------------|------------|
 | Explore-only | none | Install checks, docs, and endpoint discovery |
-| API key | `plugins.entries.tweetclaw.config.apiKey` | Account-backed workflows plus 33 prepaid public paid-read routes |
-| MPP | `plugins.entries.tweetclaw.config.tempoSigningKey` | 7 direct pay-per-use read routes with no Xquik account |
+| API key | `plugins.entries.tweetclaw.config.apiKey` | Account-backed workflows plus prepaid public paid-read routes |
+| MPP | `plugins.entries.tweetclaw.config.tempoSigningKey` | Direct pay-per-use read routes with no Xquik account |
 
 Store credentials in OpenClaw plugin config. Never paste API keys, signing keys, passwords, cookies, account IDs, or payment material into chat, docs, issues, logs, screenshots, or tool arguments.
 
-API key mode:
+Set up API key mode.
 
 ```bash
 openclaw config set plugins.entries.tweetclaw.config.apiKey "$XQUIK_API_KEY"
 ```
 
-MPP mode:
+Set up MPP mode.
 
 ```bash
-npm i mppx@0.8.12 viem@2.55.4
+npm i mppx@0.13.4 viem@2.57.5
 openclaw config set plugins.entries.tweetclaw.config.tempoSigningKey "$MPP_SIGNING_KEY"
 ```
 
 ## Base URL
 
-The default API base URL is `https://xquik.com`. Only change it for a trusted Xquik-compatible HTTPS API:
+The default API base URL is `https://xquik.com`. Only change it for a trusted Xquik-compatible HTTPS API.
 
 ```bash
 openclaw config set plugins.entries.tweetclaw.config.baseUrl "https://xquik.com"
@@ -159,13 +159,13 @@ TweetClaw rejects non-HTTPS URLs and URLs with embedded credentials.
 
 Polling is optional runtime behavior for monitor events the user already created. It does not create monitors, scan targets, post content, or change account state.
 
-Disable polling in isolated install tests unless notification delivery is under test:
+Disable polling in isolated install tests unless notification delivery is under test.
 
 ```bash
 openclaw config set plugins.entries.tweetclaw.config.pollingEnabled false
 ```
 
-The default interval is 60 seconds. The config schema and runtime normalize the interval to a minimum of 5 seconds:
+The default interval is 60 seconds. The config schema and runtime normalize the interval to a minimum of 5 seconds.
 
 ```bash
 openclaw config set plugins.entries.tweetclaw.config.pollingInterval 60
@@ -173,13 +173,13 @@ openclaw config set plugins.entries.tweetclaw.config.pollingInterval 60
 
 ## First checks
 
-Use `explore` before live calls:
+Use `explore` before live calls.
 
 ```json
 { "query": "tweet search", "limit": 5 }
 ```
 
-For MPP mode, filter for eligible endpoints:
+For MPP mode, filter for eligible endpoints.
 
 ```json
 { "mpp": true, "method": "GET", "limit": 25 }

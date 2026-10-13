@@ -1,7 +1,7 @@
 {
   "name": "@xquik/tweetclaw",
-  "version": "1.6.44",
-  "description": "OpenClaw plugin for Twitter search, follower exports, monitoring, media, and approved X automation through structured Xquik endpoints. Not affiliated with X Corp.",
+  "version": "1.7.0",
+  "description": "Twitter bot plugin for OpenClaw. Post, reply, search tweets, export followers & monitor accounts through Xquik. Not affiliated with X Corp.",
   "license": "MIT",
   "packageManager": "npm@12.2.0",
   "type": "module",
@@ -31,13 +31,13 @@
       "minGatewayVersion": "2026.7.1"
     },
     "build": {
-      "openclawVersion": "2026.7.1",
-      "pluginSdkVersion": "2026.7.1"
+      "openclawVersion": "2026.9.6",
+      "pluginSdkVersion": "2026.9.6"
     },
     "install": {
       "defaultChoice": "clawhub",
       "clawhubSpec": "clawhub:@xquik/tweetclaw",
-      "npmSpec": "@xquik/tweetclaw@1.6.44",
+      "npmSpec": "@xquik/tweetclaw@1.7.0",
       "minHostVersion": ">=2026.7.1"
     }
   },
@@ -70,10 +70,14 @@
     "x-twitter",
     "tweet-api",
     "twitter-automation",
-    "openclaw"
+    "openclaw",
+    "twitter automation",
+    "openclaw twitter",
+    "openclaw twitter plugin",
+    "openclaw x plugin"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "node -e \"require('node:fs').rmSync('dist', { force: true, recursive: true })\" && tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
@@ -84,23 +88,25 @@
     "check-em-dash": "tsx check-em-dash.ts",
     "check-skill-frontmatter": "node scripts/check-skill-frontmatter.mjs",
     "check-versions": "node scripts/check-versions.mjs",
-    "check-contract-drift": "npm run build && node scripts/check-contract-drift.mjs",
+    "generate-api-contract": "node scripts/generate-api-contract.mjs",
+    "check-contract-drift": "node scripts/generate-api-contract.mjs --check",
     "check-reproducible": "node scripts/check-reproducible.mjs",
     "check-memory-md-size": "node scripts/check-memory-md-size.mjs",
     "check-public-copy": "node scripts/check-public-copy.mjs",
     "check-openclaw-platform-fitness": "node scripts/check-openclaw-platform-fitness.mjs",
     "check-package-artifact": "node scripts/check-package-artifact.mjs",
+    "check-reuse": "node scripts/check-reuse.mjs",
     "publish-clean": "node scripts/publish-clean.mjs",
     "release": "node scripts/release.mjs",
     "prepack": "npm run build && npm run check-public-copy && npm run check-skill-frontmatter && npm run check-versions && npm run check-openclaw-platform-fitness && node scripts/pack-package-json.mjs prepare",
     "postpack": "node scripts/pack-package-json.mjs restore-after-pack",
     "prepublishOnly": "npm run check-public-copy && npm run check-skill-frontmatter && npm run check-versions && npm run build && npm run check-openclaw-platform-fitness && npm run check-package-artifact",
-    "check:all": "npm run typecheck && npm run lint && npm run cpd && npm run knip && npm run check-suppressions && npm run check-em-dash && npm run check-memory-md-size && npm run check-public-copy && npm run check-skill-frontmatter && npm run check-versions && npm run build && npm run check-openclaw-platform-fitness && npm run check-package-artifact && npm run check-reproducible && npm run test:coverage && npm audit --audit-level=low"
+    "check:all": "npm run typecheck && npm run lint && npm run cpd && npm run knip && npm run check-suppressions && npm run check-em-dash && npm run check-memory-md-size && npm run check-public-copy && npm run check-skill-frontmatter && npm run check-versions && npm run build && npm run check-openclaw-platform-fitness && npm run check-package-artifact && npm run check-reproducible && npm run test:coverage && npm run check-reuse && npm run check-contract-drift && npm audit --audit-level=low"
   },
   "peerDependencies": {
-    "mppx": "0.8.17",
+    "mppx": "0.13.4",
     "openclaw": ">=2026.7.1",
-    "viem": "2.55.18"
+    "viem": "2.57.5"
   },
   "peerDependenciesMeta": {
     "mppx": {
@@ -113,40 +119,34 @@
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "@sinclair/typebox": "0.34.52",
-    "@types/node": "26.6.4",
-    "@typescript-eslint/eslint-plugin": "8.71.0",
-    "@typescript-eslint/parser": "8.71.0",
-    "@vitest/coverage-v8": "4.1.11",
+    "@types/node": "26.6.5",
+    "@typescript-eslint/eslint-plugin": "8.71.2",
+    "@typescript-eslint/parser": "8.71.2",
+    "@vitest/coverage-v8": "5.0.4",
     "@vitest/eslint-plugin": "1.6.27",
     "eslint": "10.12.0",
     "eslint-config-prettier": "10.1.8",
     "eslint-import-resolver-typescript": "4.4.5",
     "eslint-plugin-import-x": "4.17.1",
-    "eslint-plugin-n": "18.3.0",
+    "eslint-plugin-n": "18.4.1",
     "eslint-plugin-no-secrets": "2.3.3",
     "eslint-plugin-promise": "7.3.0",
-    "eslint-plugin-regexp": "3.2.0",
-    "eslint-plugin-security": "4.0.1",
-    "eslint-plugin-sonarjs": "4.2.0",
-    "eslint-plugin-unicorn": "73.0.0",
-    "fast-check": "4.9.0",
-    "globals": "17.11.0",
-    "jscpd": "5.0.16",
-    "knip": "6.32.2",
-    "tsx": "4.23.12",
+    "eslint-plugin-regexp": "3.3.1",
+    "eslint-plugin-security": "4.2.0",
+    "eslint-plugin-sonarjs": "4.2.2",
+    "eslint-plugin-unicorn": "78.0.0",
+    "fast-check": "4.10.2",
+    "globals": "17.13.0",
+    "jscpd": "5.4.1",
+    "knip": "6.41.0",
+    "mppx": "0.13.4",
+    "openclaw": "2026.9.6",
+    "tsx": "4.23.15",
     "typescript": "6.0.3",
-    "vitest": "4.1.11"
+    "viem": "2.57.5",
+    "vitest": "5.0.4"
   },
   "overrides": {
-    "@hono/node-server": "2.1.1",
-    "brace-expansion": "5.0.12",
-    "ip-address": "10.7.3",
-    "postcss": "8.5.26",
-    "tar": "7.5.22",
-    "vite": "8.2.1",
-    "fast-uri": "4.2.1",
-    "hono": "4.13.12",
-    "nanoid": "3.3.18",
-    "undici": "8.11.2"
+    "@modelcontextprotocol/sdk": "1.32.1"
   }
 }

@@ -8,24 +8,19 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, extname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { MPP_PRICE_PATTERN, RESTRICTED_BILLING_PATTERNS } from "./public-copy-rules.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const scannedExtensions = new Set([".cjs", ".js", ".json", ".jsx", ".md", ".mjs", ".ts", ".tsx", ".yaml", ".yml"]);
 const ignoredFiles = new Set(["scripts/check-public-copy.mjs"]);
-const restrictedPatterns = [
-  { label: "exact currency amount", value: /\$\d/iu },
-  { label: "credit-to-currency conversion", value: /\b1\s+credit\s*(?:=|equals)\s*\$/iu },
-  { label: "exact credit charge", value: /\b\d+(?:\s*(?:-|to)\s*\d+)?\s+credits?(?:\s*\/\s*(?:entry|hour|result)|\s+per\s+(?:entry|hour|result))?\b/iu },
-  { label: "exact checkout threshold", value: /\$\d+(?:\.\d+)?\s*(?:max(?:imum)?|min(?:imum)?)/iu },
-  { label: "exact non-MPP result price", value: /\$\d+(?:\.\d+)?\s*\/\s*(?:entry|hour|result)/iu },
-  { label: "duplicated direct MPP price table", value: /\bdirect\s+mpp\s+pricing\b/iu },
-];
-const publicMppPrice = /^const MPP_PRICE_[A-Z_]+ = '\$\d+\.\d+\/call';$/u;
 
-function isAllowedPublicPrice(file, line, label) {
-  return label === "exact currency amount"
-    && file === "src/api-spec.ts"
-    && publicMppPrice.test(line.trim());
+// `explore` publishes each MPP route's price per call. The generator copies
+// those prices from the spec into the contract, and tests assert them. No
+// other file may state one.
+function withoutPublicMppPrices(file, line) {
+  return file === "generated-api-contract.json" || file.startsWith("tests/")
+    ? line.replaceAll(MPP_PRICE_PATTERN, "")
+    : line;
 }
 
 function listCandidateFiles() {
@@ -49,11 +44,9 @@ for (const file of listCandidateFiles()) {
     continue;
   }
 
-  for (const [index, line] of readFileSync(filePath, "utf8").split("\n").entries()) {
-    for (const pattern of restrictedPatterns) {
-      if (isAllowedPublicPrice(file, line, pattern.label)) {
-        continue;
-      }
+  for (const [index, rawLine] of readFileSync(filePath, "utf8").split("\n").entries()) {
+    const line = withoutPublicMppPrices(file, rawLine);
+    for (const pattern of RESTRICTED_BILLING_PATTERNS) {
       if (pattern.value.test(line)) {
         violations.push(`${file}:${index + 1} contains ${pattern.label}`);
       }

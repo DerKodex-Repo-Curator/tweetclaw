@@ -1,79 +1,91 @@
 #!/usr/bin/env node
 
 // SPDX-FileCopyrightText: 2026 Xquik Contributors
+//
 // SPDX-License-Identifier: MIT
 
-import fs from "node:fs";
+// Writes generated-api-contract.json and the README coverage block from the
+// live Xquik OpenAPI spec. Run it after the API changes.
+//
+//   node scripts/generate-api-contract.mjs [--check] [--root <folder>] [spec]
+//
+// `spec` is a URL or a file and defaults to the live spec. `--check` writes
+// nothing and exits 1 when the files differ from what the spec gives.
+// `--root` names the folder that holds the 2 files.
 
-const source = process.argv[2] ?? "https://xquik.com/openapi.json";
-const output = new URL("../generated-api-contract.json", import.meta.url);
-const openapi = await (source.startsWith("http")
-  ? fetch(source).then((response) => response.json())
-  : Promise.resolve(JSON.parse(fs.readFileSync(source, "utf8"))));
-const excluded = new Set([
-  "GET /api/v1/credits/topup/redirect", "GET /api/v1/guest-wallets/status",
-  "GET /api/v1/support/attachments/{id}", "POST /api/v1/guest-wallets",
-  "POST /api/v1/guest-wallets/topups", "POST /api/v1/x/account-connection-challenges/{id}/submit",
-  "POST /api/v1/x/accounts", "POST /api/v1/x/accounts/{id}/reauth",
-]);
-const rich = ["SearchTweet", "TweetDetail", "TweetMedia", "UserProfile"];
-const locations = ["body", "header", "path", "query"];
-const resolve = (value, type) => value?.$ref === undefined
-  ? value
-  : openapi.components?.[type]?.[value.$ref.split("/").at(-1)];
-const nested = (schema) => schema === undefined || schema === null || typeof schema !== "object"
-  ? []
-  : [...Object.values(schema.properties ?? {}), ...(schema.allOf ?? []), ...(schema.anyOf ?? []),
-    ...(schema.oneOf ?? []), schema.items].filter(Boolean);
-function includes(schema, name, seen = new Set()) {
-  if (schema?.$ref === `#/components/schemas/${name}`) return true;
-  if (schema?.$ref !== undefined && !seen.has(schema.$ref)) {
-    seen.add(schema.$ref);
-    return includes(resolve(schema, "schemas"), name, seen);
+import { readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { parseArgs } from "node:util";
+import { fileURLToPath } from "node:url";
+import { CATALOG_POLICY } from "./catalog-policy.mjs";
+import { describeDrift, OPENAPI_URL, replaceCoverage, serializeContract } from "./contract-files.mjs";
+import { buildContract } from "./openapi-catalog.mjs";
+
+const FETCH_TIMEOUT_MS = 30_000;
+const REGENERATE = "Run `npm run generate-api-contract`, review the diff, and commit it.";
+
+async function readSpec(source) {
+  if (!/^https?:\/\//u.test(source)) return JSON.parse(readFileSync(source, "utf8"));
+  const response = await fetch(source, {
+    headers: { accept: "application/json" },
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  });
+  if (!response.ok) {
+    throw new Error(`${source} returned HTTP ${String(response.status)}. Check the address, then run again.`);
   }
-  return nested(schema).some((value) => includes(value, name, new Set(seen)));
+  return response.json();
 }
-const parameterType = (schema) => schema?.type === "array"
-  ? `${schema.items?.type ?? "unknown"}[]`
-  : schema?.type ?? "unknown";
-function parameters(operation) {
-  const direct = (operation.parameters ?? []).map((raw) => resolve(raw, "parameters")).map((value) => ({
-    description: value.name, in: locations.indexOf(value.in), name: value.name,
-    required: value.required === true, type: parameterType(resolve(value.schema, "schemas")),
-  }));
-  const body = resolve(operation.requestBody?.content?.["application/json"]?.schema, "schemas");
-  const variants = body?.allOf === undefined
-    ? (body?.oneOf ?? [body]).map((value) => resolve(value, "schemas")).filter(Boolean)
-    : [{ properties: Object.assign({}, ...body.allOf.map((value) => resolve(value, "schemas")?.properties ?? {})),
-      required: body.allOf.flatMap((value) => resolve(value, "schemas")?.required ?? []) }];
-  const names = [...new Set(variants.flatMap((value) => Object.keys(value.properties ?? {})))];
-  return [...direct, ...names.map((name) => {
-    const property = variants.find((value) => value.properties?.[name] !== undefined)?.properties[name];
-    return { description: name, in: 0, name,
-      required: variants.length > 0 && variants.every((value) => value.required?.includes(name)),
-      type: parameterType(resolve(property, "schemas")) };
-  })];
+
+function report(message) {
+  process.stdout.write(`generate-api-contract: ${message}\n`);
 }
-function responseFields(operation) {
-  const fields = new Set();
-  for (const [status, raw] of Object.entries(operation.responses ?? {})) {
-    if (!status.startsWith("2")) continue;
-    const rawSchema = resolve(raw, "responses")?.content?.["application/json"]?.schema;
-    const schema = resolve(rawSchema, "schemas");
-    for (const name of schema?.required ?? []) fields.add(name);
-    for (const name of rich) if (includes(rawSchema, name)) {
-      for (const field of Object.keys(openapi.components?.schemas?.[name]?.properties ?? {})) fields.add(`${name}.${field}`);
-    }
+
+async function main() {
+  const { positionals, values } = parseArgs({
+    allowPositionals: true,
+    options: {
+      check: { default: false, type: "boolean" },
+      root: { default: join(dirname(fileURLToPath(import.meta.url)), ".."), type: "string" },
+    },
+  });
+  const contractPath = join(values.root, "generated-api-contract.json");
+  const readmePath = join(values.root, "README.md");
+
+  const spec = await readSpec(positionals[0] ?? OPENAPI_URL);
+  const { absentExclusions, contract } = buildContract(spec, CATALOG_POLICY);
+  const serialized = serializeContract(contract);
+  const committedReadme = readFileSync(readmePath, "utf8");
+  const readme = replaceCoverage(committedReadme, contract.counts);
+  if (readme === undefined) {
+    throw new Error("README.md has no api-coverage block. Restore its start and end markers.");
   }
-  return [...fields].sort().join(", ");
+
+  const { callable, specOperations } = contract.counts;
+  const summary = `${String(callable)} of ${String(specOperations)} spec operations are agent-callable.`;
+  for (const key of absentExclusions) {
+    report(`the spec does not publish ${key}. It stays excluded.`);
+  }
+
+  if (!values.check) {
+    writeFileSync(contractPath, serialized);
+    writeFileSync(readmePath, readme);
+    report(`wrote the catalog. ${summary}`);
+    return;
+  }
+
+  const drift = [
+    ...describeDrift(readFileSync(contractPath, "utf8"), serialized),
+    ...(committedReadme === readme ? [] : ["the README coverage block differs"]),
+  ];
+  if (drift.length > 0) {
+    throw new Error(`the catalog is behind the spec.\n${drift.map((line) => `  ${line}`).join("\n")}\n${REGENERATE}`);
+  }
+  report(`the catalog matches the spec. ${summary}`);
 }
-const contract = {};
-for (const path of Object.keys(openapi.paths ?? {}).sort()) for (const method of ["delete", "get", "patch", "post", "put"]) {
-  const operation = openapi.paths[path][method];
-  const rawKey = `${method.toUpperCase()} ${path}`;
-  if (operation === undefined || excluded.has(rawKey)) continue;
-  contract[rawKey.replaceAll(/\{[^}]+\}/gu, ":param")] = {
-    parameters: parameters(operation), responseFields: responseFields(operation),
-  };
+
+try {
+  await main();
+} catch (error) {
+  process.stderr.write(`generate-api-contract: ${error instanceof Error ? error.message : String(error)}\n`);
+  process.exit(1);
 }
-fs.writeFileSync(output, `${JSON.stringify(contract)}\n`);

@@ -13,17 +13,27 @@ interface EndpointParameter {
 }
 
 interface EndpointInfo {
-  readonly agentProhibited?: true;
+  readonly agentProhibited?: boolean;
   readonly category: string;
   readonly free: boolean;
   readonly method: string;
   readonly mpp?: { readonly intent: 'charge'; readonly price: string };
-  readonly parameters?: readonly EndpointParameter[];
+  readonly parameters: readonly EndpointParameter[];
   readonly path: string;
-  readonly responseShape?: string;
-  readonly sensitive?: true;
+  readonly responseShape: string;
+  readonly sensitive?: boolean;
   readonly summary: string;
 }
+
+/** What an MPP route charges for 1 call, in the token's smallest unit. */
+interface MppOffer {
+  readonly amount: string;
+  /** The token's address, in lower case. */
+  readonly currency: string;
+}
+
+/** Makes a fetch that pays 1 offer and nothing else. */
+type PayingFetch = (offer: Readonly<MppOffer>) => FetchFunction;
 
 interface RequestOptions {
   readonly body?: unknown;
@@ -80,6 +90,8 @@ export type {
   EventPollerOptions,
   ExploreParams,
   FetchFunction,
+  MppOffer,
+  PayingFetch,
   PluginConfig,
   RequestFunction,
   RequestOptions,

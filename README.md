@@ -1,12 +1,9 @@
-# TweetClaw: OpenClaw Twitter Search, Followers & Automation
-
-> **Xquik is an independent third-party service.** Not affiliated with X Corp.
-> "Twitter" and "X" are trademarks of X Corp.
+# TweetClaw, the Twitter bot plugin for OpenClaw
 
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/13730/badge)](https://www.bestpractices.dev/projects/13730)
 [![npm](https://img.shields.io/npm/v/@xquik%2Ftweetclaw.svg)](https://registry.npmjs.org/@xquik%2ftweetclaw)
 [![npm downloads](https://img.shields.io/npm/dm/@xquik/tweetclaw.svg)](https://registry.npmjs.org/@xquik%2ftweetclaw)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![MIT license](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 ![GitHub stars](https://img.shields.io/github/stars/Xquik-dev/tweetclaw.svg)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg?url=https%3A%2F%2Fgithub.com%2FXquik-dev%2Ftweetclaw)](https://deepwiki.com/Xquik-dev/tweetclaw)
 [![Context7](https://img.shields.io/badge/Context7-agent_docs-059669)](https://context7.com/xquik-dev/tweetclaw)
@@ -15,9 +12,15 @@
 <a href="https://nothumansearch.ai/site/xquik.com" target="_blank" rel="noopener"><img src="https://nothumansearch.ai/badge/xquik.com.svg" alt="NHS Agentic Readiness Score" height="28"></a>
 [![Apify Actor](https://apify.com/actor-badge?actor=xquik/x-tweet-scraper)](https://apify.com/xquik/x-tweet-scraper)
 
-TweetClaw connects [OpenClaw](https://github.com/openclaw/openclaw) to Xquik for
-Twitter search, follower exports, monitoring, media, and approved X actions. Use
-Xquik MCP with remote MCP clients and an SDK in application code.
+TweetClaw is the Twitter bot plugin for [OpenClaw](https://github.com/openclaw/openclaw). It runs on Xquik.
+
+Xquik is the world's fastest and cheapest X Twitter scraper service with the most complete X data. Xquik charges only for delivered, unique, filter-matching results and never pads rows.
+
+Xquik is an independent third-party service. Not affiliated with X Corp. "Twitter" and "X" are trademarks of X Corp.
+
+Your agent can post, reply, search tweets, export followers & monitor accounts.
+Every write waits for your approval. Use Xquik MCP with remote MCP clients and
+an SDK in application code.
 
 ## Common OpenClaw tasks
 
@@ -52,13 +55,13 @@ OpenClaw records the verified ClawHub publisher scope and package as the update 
 
 Use `openclaw plugins install npm:@xquik/tweetclaw` when you need the npm fallback.
 
-For normal upgrades, reuse the tracked install source:
+For normal upgrades, reuse the tracked install source.
 
 ```bash
 openclaw plugins update tweetclaw
 ```
 
-For reproducible production installs, pin a published npm version:
+For reproducible production installs, pin a published npm version.
 
 ```bash
 openclaw plugins install npm:@xquik/tweetclaw@<version> --pin
@@ -74,7 +77,7 @@ mutators are disabled. Install or update TweetClaw through your Nix OpenClaw
 source instead of `openclaw plugins install` or `openclaw plugins update`.
 
 Install TweetClaw before adding credentials if needed. The free `explore`
-catalog works immediately; live calls return setup guidance.
+catalog works at once. Live calls return setup guidance.
 
 Agents with skill directories can install the packaged `SKILL.md` through
 [Skills.sh](https://www.skills.sh/xquik-dev/tweetclaw). Use the OpenClaw command
@@ -90,7 +93,7 @@ path](https://docs.xquik.com/mcp/overview#client-compatibility). OAuth-capable
 clients complete OAuth 2.1. Clients that support custom bearer headers can use
 an Xquik API key. ChatGPT custom apps require OAuth.
 
-> **Codex OAuth compatibility:** Affected Codex releases discard the RFC 9207
+> **Codex OAuth compatibility.** Affected Codex releases discard the RFC 9207
 > `iss` callback value even though Xquik returns it. If Codex reports
 > `Authorization server response missing required issuer: expected https://xquik.com`,
 > use `XQUIK_API_KEY` through the Codex `bearer_token_env_var` setting. Follow the
@@ -105,10 +108,10 @@ for current plans, eligible endpoints, and live prices.
 
 ## Configure
 
-### API key: account-backed X automation
+### API key for account-backed X automation
 
 Create an API key at [dashboard.xquik.com](https://dashboard.xquik.com/), then
-store it through OpenClaw:
+store it through OpenClaw.
 
 ```bash
 openclaw config set plugins.entries.tweetclaw.config.apiKey "$XQUIK_API_KEY"
@@ -116,31 +119,31 @@ openclaw config set plugins.entries.tweetclaw.config.apiKey "$XQUIK_API_KEY"
 
 Keep the key out of chats, documentation, logs, and shell history.
 
-### Credits: pay per use without a subscription
+### Credits for pay per use without a subscription
 
-Top up credits from the Xquik dashboard. An API key can spend prepaid credits across 33 public paid-read routes without a subscription. TweetClaw does not create checkout sessions or charge saved payment methods from the agent.
+Top up credits from the Xquik dashboard. An API key can spend prepaid credits across public paid-read routes without a subscription. TweetClaw does not create checkout sessions or charge saved payment methods from the agent.
 
-### Direct MPP: accountless pay per use
+### Direct MPP for accountless pay per use
 
-Machine Payments Protocol (MPP) covers 7 direct MPP routes without an account,
+Machine Payments Protocol (MPP) pays for single lookups without an account,
 API key, or subscription. Create an MPP account with `mppx account create`.
 
 ```bash
-npm i mppx@0.8.12 viem@2.55.4
+npm i mppx@0.13.4 viem@2.57.5
 openclaw config set plugins.entries.tweetclaw.config.tempoSigningKey "$MPP_SIGNING_KEY"
 ```
 
 Keep the signing key in local OpenClaw config. Never put it in prompts or logs.
 
-Direct MPP covers tweet lookup, user lookup, follower check, article lookup,
-trends, X trends, and community info. Other paid reads use prepaid credits.
-Media downloads and galleries require account-backed access.
+`explore` marks each MPP route with its price per call. [API coverage](#api-coverage)
+counts them. Other paid reads use prepaid credits. Media downloads and galleries
+require account-backed access.
 
 ### Enable live API calls
 
 OpenClaw always loads the local `explore` catalog. The `tweetclaw` API tool is
 optional because it can read private data, spend credits, or change X accounts.
-Add both tools without replacing the current profile:
+Add both tools without replacing the current profile.
 
 ```bash
 openclaw config set tools.alsoAllow '["explore", "tweetclaw"]'
@@ -160,11 +163,11 @@ Only change `baseUrl` for a self-hosted Xquik-compatible API. TweetClaw requires
 
 ## OpenClaw trust model
 
-TweetClaw uses 2 OpenClaw gates:
+TweetClaw uses 2 OpenClaw gates.
 
-- Optional tool exposure: `explore` is always safe local catalog search, while
+- Optional tool exposure. `explore` is always safe local catalog search, while
   `tweetclaw` stays optional until the user allows it with `tools.alsoAllow`.
-- Per-call approval: write-like, private, paid, recurring, extraction, monitor,
+- Per-call approval. Write-like, private, paid, recurring, extraction, monitor,
   webhook, and account-scoped calls trigger a plugin approval prompt. TweetClaw
   offers one-time approval or deny for those calls so a social-account action is
   reviewed each time.
@@ -190,41 +193,55 @@ OpenClaw approval prompts are enforced before write-like `tweetclaw` tool calls.
 
 ## Commands
 
-Instant responses, no LLM needed:
+These commands answer at once, without the LLM.
 
 | Command | Description |
 |---------|-------------|
 | `/xstatus` | Account info, subscription status, usage, credit balance |
 | `/xtrends` | Curated topics with an API key. Worldwide X trends with MPP. |
-| `/xtrends tech` | API-key mode: curated topics in one category. |
-| `/xtrends 23424977` | MPP mode: X trends for one WOEID. |
+| `/xtrends tech` | API-key mode shows curated topics in one category. |
+| `/xtrends 23424977` | MPP mode shows X trends for one WOEID. |
 
 ## Event notifications
 
 When polling is enabled, TweetClaw checks user-created monitors every 60 seconds
 and delivers new tweet, reply, quote, or retweet events.
 
-Set up a monitor first:
+Set up a monitor first. Ask your agent in plain words.
 
 ```
-You: "Monitor @elonmusk for new tweets, replies, and retweets"
+Monitor @elonmusk for new tweets, replies, and retweets
 ```
 
 ## API coverage
 
-102 agent-callable endpoints across 9 categories. Dashboard-only flows stay blocked.
+<!-- api-coverage:start (npm run generate-api-contract writes this block) -->
+The live [Xquik OpenAPI spec](https://xquik.com/openapi.json) lists 180 operations. An operation is 1 method on 1 path.
+
+Agents can call 152 of them through `tweetclaw`. TweetClaw leaves out the other 28.
+
+| Left out | Operations |
+| --- | --- |
+| Account settings, API keys, billing & support, which stay in the dashboard | 18 |
+| X account connection, guest wallet checkout & support file downloads | 7 |
+| Documentation search outside `/api/v1` | 2 |
+| Event streams, which the tool cannot read | 1 |
+
+13 of the 152 accept MPP. Run `explore` with `mpp` set to `true` to list them.
+<!-- api-coverage:end -->
 
 | Category | Examples | Access |
 |----------|---------|--------|
 | **Account** | Account status | Account-backed |
+| **Analysis** | Sentiment, brand, news, market signals, viral score, custom questions | Account-backed |
 | **Composition** | Compose, drafts, writing styles, radar | Account-backed |
 | **Credits** | Check balance | Account-backed |
-| **Extraction** | 23 extraction tools, giveaway draws, exports | Account-backed |
-| **Media** | Upload media via URL, authenticated media download, gallery links | Account-backed |
-| **Monitoring** | Create monitors, view events, manage webhooks | Account-backed |
-| **Twitter** | Search, lookups, timelines, articles, trends, bookmarks, notifications | Account-backed or MPP where eligible |
+| **Extraction** | Extraction tools, giveaway draws, exports | Account-backed |
+| **Media** | Authenticated media download, gallery links | Account-backed |
+| **Monitoring** | Create monitors, view events, manage webhooks, Telegram links | Account-backed |
+| **Twitter** | Search, lookups, timelines, articles, trends, lists, communities, Spaces, jobs, bookmarks, notifications | Account-backed or MPP where eligible |
 | **X Accounts** | List connected account handles for explicit user-selected actions | Account-backed |
-| **X Write** | Post, reply, like, retweet, follow, remove follower, DM, profile, communities | Account-backed with approval |
+| **X Write** | Post, reply, like, retweet, follow, remove follower, DM, upload media, profile, communities | Account-backed with approval |
 
 ## References
 
@@ -234,12 +251,10 @@ You: "Monitor @elonmusk for new tweets, replies, and retweets"
 - [Context7 Agent Docs](https://context7.com/xquik-dev/tweetclaw)
 - [OpenClaw Setup Guide](docs/openclaw-setup.md)
 - [Agent Workflow Guide](docs/agent-workflows.md)
-- Framework guides: [Mastra](https://docs.xquik.com/guides/mastra), [CrewAI](https://docs.xquik.com/guides/crewai), [LangChain](https://docs.xquik.com/guides/langchain), [Pydantic AI](https://docs.xquik.com/guides/pydantic-ai), [Google ADK](https://docs.xquik.com/guides/google-adk), [Microsoft Agent Framework](https://docs.xquik.com/guides/microsoft-agent-framework), [n8n](https://docs.xquik.com/guides/n8n), [Zapier](https://docs.xquik.com/guides/zapier), [Make](https://docs.xquik.com/guides/make), [Pipedream](https://docs.xquik.com/guides/pipedream), [Composio migration](https://docs.xquik.com/guides/composio-migration)
+- Framework guides for [Mastra](https://docs.xquik.com/guides/mastra), [CrewAI](https://docs.xquik.com/guides/crewai), [LangChain](https://docs.xquik.com/guides/langchain), [Pydantic AI](https://docs.xquik.com/guides/pydantic-ai), [Google ADK](https://docs.xquik.com/guides/google-adk), [Microsoft Agent Framework](https://docs.xquik.com/guides/microsoft-agent-framework), [n8n](https://docs.xquik.com/guides/n8n), [Zapier](https://docs.xquik.com/guides/zapier), [Make](https://docs.xquik.com/guides/make), [Pipedream](https://docs.xquik.com/guides/pipedream), [Composio migration](https://docs.xquik.com/guides/composio-migration)
 - [npm Registry Metadata](https://registry.npmjs.org/@xquik%2ftweetclaw)
 - [OpenClaw](https://github.com/openclaw/openclaw)
 
 ## License
 
 MIT
-
-Xquik is an independent third-party service. Not affiliated with X Corp. "Twitter" and "X" are trademarks of X Corp.
