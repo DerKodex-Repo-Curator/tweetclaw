@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-import { findRoute } from './routes.js';
+import { assertApiPath, canonicalPath, findRoute } from './routes.js';
 import type { FetchFunction, RequestFunction, RequestOptions } from './types.js';
 
 const FETCH_TIMEOUT_MS = 30_000;
@@ -12,7 +12,8 @@ const AUTHORIZATION_HEADER = 'authorization';
 const IDEMPOTENCY_KEY_HEADER = 'Idempotency-Key';
 const BEARER_PREFIX = 'Bearer ';
 const API_KEY_PREFIX = 'xq_';
-const API_V1_PREFIX = '/api/v1/';
+const REDIRECT_STATUS_FIRST = 300;
+const REDIRECT_STATUS_LAST = 399;
 const MAX_SAFE_ERROR_CODE_LENGTH = 80;
 
 function buildAuthHeader(credential: string): Record<string, string> {
@@ -54,7 +55,11 @@ function parseBaseUrl(baseUrl: string): URL {
 }
 
 function buildFetchUrl(baseUrl: string, path: string, query?: Readonly<Record<string, string>>): string {
-  const url = new URL(path, parseBaseUrl(baseUrl));
+  const base = parseBaseUrl(baseUrl);
+  const url = new URL(path, base);
+  if (url.origin !== base.origin) {
+    throw new Error('Path names another host. Use a catalog-listed API path.');
+  }
   if (query !== undefined) {
     for (const [key, value] of Object.entries(query)) {
       url.searchParams.set(key, value);
@@ -63,29 +68,53 @@ function buildFetchUrl(baseUrl: string, path: string, query?: Readonly<Record<st
   return url.toString();
 }
 
-function normalizeProhibitedPath(path: string): string {
-  let end = path.length;
-  while (end > 1 && path.charAt(end - 1) === '/') {
-    end -= 1;
-  }
-  return end === path.length ? path : path.slice(0, end);
+// Path families an agent never reaches, whatever the generated catalog says.
+// Key management, payments, account credentials, account settings and support
+// stay in the dashboard. A family covers its own path and every path under it,
+// for every method. A `readable` family still allows a GET of its own path.
+// This list is written by hand on purpose, so no spec change can open a route.
+const REFUSED_PATH_FAMILIES: ReadonlyArray<{ readonly path: string; readonly readable?: true }> = [
+  { path: '/api/v1/account', readable: true },
+  { path: '/api/v1/api-keys' },
+  { path: '/api/v1/credits', readable: true },
+  { path: '/api/v1/guest-wallets' },
+  { path: '/api/v1/subscribe' },
+  { path: '/api/v1/support' },
+  { path: '/api/v1/x/account-connection-attempts' },
+  { path: '/api/v1/x/account-connection-challenges' },
+  { path: '/api/v1/x/accounts', readable: true },
+];
+
+function isStaticallyRefused(method: string, path: string): boolean {
+  const target = canonicalPath(path);
+  return REFUSED_PATH_FAMILIES.some((family) =>
+    target === family.path
+      ? !(family.readable === true && method.toUpperCase() === 'GET')
+      : target.startsWith(`${family.path}/`));
 }
 
-// True when the request names an operation the catalog leaves out or marks
-// dashboard-only. The generated contract lists both.
-function isProhibitedRequest(method: string, path: string): boolean {
-  const route = findRoute(method.toUpperCase(), normalizeProhibitedPath(path));
-  return route !== undefined && route.endpoint === undefined;
-}
-
-function validateRequestPath(method: string, path: string): void {
-  if (!path.startsWith(API_V1_PREFIX)) {
-    throw new Error(`Path is outside /api/v1/. Use a catalog-listed API path: ${path}`);
-  }
-  if (isProhibitedRequest(method, path)) {
+// A request goes out only when it names an operation the catalog lists as
+// agent-callable and the static list does not refuse. Every other request is
+// refused, whatever the reason the catalog lacks it.
+function assertCallableRequest(method: string, path: string): void {
+  assertApiPath(path);
+  const route = findRoute(method, path);
+  if (isStaticallyRefused(method, path) || (route !== undefined && route.endpoint === undefined)) {
     throw new Error(
       'Endpoint is blocked for agents. Complete account, credential, billing, or support administration at dashboard.xquik.com.',
     );
+  }
+  if (route === undefined) {
+    throw new Error(`Endpoint is not in the TweetClaw catalog. Choose a route returned by explore: ${method} ${path}`);
+  }
+}
+
+function isProhibitedRequest(method: string, path: string): boolean {
+  try {
+    assertCallableRequest(method.toUpperCase(), path);
+    return false;
+  } catch {
+    return true;
   }
 }
 
@@ -154,22 +183,32 @@ function formatApiError(response: Response, payload: unknown): string {
   return code === undefined ? `Xquik API returned ${status}.` : `Xquik API returned ${status} (${code}).`;
 }
 
+// A redirect could carry the credential to another address, so none is
+// followed.
+function assertNoRedirect(response: Response): void {
+  if (response.status >= REDIRECT_STATUS_FIRST && response.status <= REDIRECT_STATUS_LAST) {
+    throw new Error('Xquik API answered with a redirect. TweetClaw follows none, so the credential stays on this host.');
+  }
+}
+
 function createProxiedRequest(
   baseUrl: string,
   credential: string,
   fetchFunction?: FetchFunction,
 ): RequestFunction {
   return async (path: string, options?: Readonly<RequestOptions>): Promise<unknown> => {
-    const method = options?.method ?? 'GET';
-    validateRequestPath(method, path);
+    const method = (options?.method ?? 'GET').toUpperCase();
+    assertCallableRequest(method, path);
     const hasBody = options?.body !== undefined;
     const activeFetch = fetchFunction ?? globalThis.fetch;
-    const response = await activeFetch(buildFetchUrl(baseUrl, path, options?.query), {
+    const response = await activeFetch(buildFetchUrl(baseUrl, canonicalPath(path), options?.query), {
       ...(hasBody ? { body: JSON.stringify(options.body) } : {}),
       headers: buildFetchHeaders(credential, hasBody, options?.idempotencyKey),
       method,
+      redirect: 'manual',
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
+    assertNoRedirect(response);
     const json: unknown = await readResponseJson(response);
     if (!response.ok) {
       throw new Error(formatApiError(response, json));
@@ -185,4 +224,5 @@ export {
   createProxiedRequest,
   IDEMPOTENCY_KEY_HEADER,
   isProhibitedRequest,
+  isStaticallyRefused,
 };

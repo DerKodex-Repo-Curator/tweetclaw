@@ -4,10 +4,9 @@
 
 import { API_SPEC, APPROVAL_FREE_READS } from '../api-spec.js';
 import { IDEMPOTENCY_KEY_HEADER } from '../request.js';
-import { findRoute, matchesEndpointPath } from '../routes.js';
+import { assertApiPath, findRoute, matchesEndpointPath } from '../routes.js';
 import type { EndpointInfo, ExploreParams, TweetclawParams } from '../types.js';
 
-const API_V1_PREFIX = '/api/v1/';
 const DEFAULT_EXPLORE_LIMIT = 25;
 const MAX_EXPLORE_LIMIT = 100;
 const MAX_IDEMPOTENCY_KEY_LENGTH = 255;
@@ -24,15 +23,6 @@ function normalizeLimit(limit?: number): number {
   return limit === undefined || !Number.isFinite(limit)
     ? DEFAULT_EXPLORE_LIMIT
     : Math.min(Math.max(Math.trunc(limit), 1), MAX_EXPLORE_LIMIT);
-}
-
-function assertSafePath(path: string): void {
-  if (!path.startsWith(API_V1_PREFIX)) {
-    throw new Error(`Path is outside /api/v1/. Use a catalog-listed API path: ${path}`);
-  }
-  if (path.includes('?') || path.includes('#')) {
-    throw new Error('Pass query parameters through the query object, not in the path.');
-  }
 }
 
 function findEndpoint(method: string, path: string): EndpointInfo | undefined {
@@ -101,7 +91,7 @@ function resolveCatalogRequest(
 } {
   const method = normalizeMethod(params.method);
   const { body, idempotencyKey, path } = params;
-  assertSafePath(path);
+  assertApiPath(path);
   const endpoint = findEndpoint(method, path);
   if (endpoint === undefined) {
     throw new Error(`Endpoint is not in the TweetClaw catalog. Choose a route returned by explore: ${method} ${path}`);
