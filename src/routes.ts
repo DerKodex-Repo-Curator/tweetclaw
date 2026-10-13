@@ -49,28 +49,18 @@ function isPlainPath(path: string): boolean {
     && !path.split('/').some((segment) => hasDotSegment(segment));
 }
 
-/** Throws unless the path is a plain path under /api/v1 without a query. */
-function assertApiPath(path: string): void {
+/**
+ * Says why a path cannot name an operation. Returns undefined for a plain path
+ * under /api/v1 without a query.
+ */
+function apiPathProblem(path: string): string | undefined {
   if (!path.startsWith(API_V1_PREFIX)) {
-    throw new Error(`Path is outside /api/v1/. Use a catalog-listed API path: ${path}`);
+    return `Path is outside /api/v1/. Use a catalog-listed API path: ${path}`;
   }
   if (path.includes('?') || path.includes('#')) {
-    throw new Error('Pass query parameters through the query object, not in the path.');
+    return 'Pass query parameters through the query object, not in the path.';
   }
-  if (!isPlainPath(path)) {
-    throw new Error(
-      'Path is not a plain API path. Remove dot segments, backslashes, spaces, and escaped separators.',
-    );
-  }
-}
-
-function isApiPath(path: string): boolean {
-  try {
-    assertApiPath(path);
-    return true;
-  } catch {
-    return false;
-  }
+  return isPlainPath(path) ? undefined : 'Path is not sent as written. Use a plain catalog path.';
 }
 
 function matchesEndpointPath(endpointPath: string, requestPath: string): boolean {
@@ -104,9 +94,9 @@ const ROUTES: readonly Route[] = [...API_SPEC.map((endpoint) => catalogRoute(end
  * A path that is not a plain /api/v1 path names no operation.
  */
 function findRoute(method: string, path: string): Route | undefined {
-  return isApiPath(path)
+  return apiPathProblem(path) === undefined
     ? ROUTES.find((route) => route.method === method && matchesEndpointPath(route.path, path))
     : undefined;
 }
 
-export { assertApiPath, canonicalPath, findRoute, matchesEndpointPath };
+export { apiPathProblem, canonicalPath, findRoute, matchesEndpointPath };

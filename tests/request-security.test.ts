@@ -282,6 +282,12 @@ describe('request layer', () => {
     await expect(request(path, { method })).rejects.toThrow(/blocked for agents|not in the TweetClaw catalog/u);
   });
 
+  it('refuses a route the catalog leaves out', async () => {
+    expect.assertions(1);
+    const request = createProxiedRequest('https://xquik.com', 'xq_test', failingFetch);
+    await expect(request('/api/v1/events/stream')).rejects.toThrow('blocked for agents');
+  });
+
   it.each(REFUSED_ROUTES)('keeps %s %s on the static refusal list, whatever the catalog says', (method, path) => {
     expect.assertions(1);
     expect(isStaticallyRefused(method, path)).toBe(true);

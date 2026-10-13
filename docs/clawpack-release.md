@@ -30,11 +30,12 @@ of the release commit.
 ```bash
 npm ci
 npm run check:all
-uv tool run --from reuse==6.2.0 reuse lint
 ```
 
-`check:all` ends with the catalog drift check and `npm audit --audit-level=low`.
-Both need network access. All checks must pass before packing or publishing.
+`check:all` ends with the REUSE lint, the catalog drift check and
+`npm audit --audit-level=low`. All 3 need network access. The REUSE lint runs
+`uvx --from reuse==6.2.0 reuse lint`, so install [uv](https://docs.astral.sh/uv)
+first. All checks must pass before packing or publishing.
 
 Regenerate `package-lock.json` with the npm version that `packageManager` names.
 That npm needs `--allow-remote=all` to read OpenClaw's bundled dependencies.
@@ -69,21 +70,28 @@ machine's own npm sign-in and never prints the token. Set it up once.
 3. Run `security add-generic-password -s "$NPM_KEYCHAIN_SERVICE" -a "$NPM_KEYCHAIN_ACCOUNT" -w`
    and paste the npm token when it asks.
 
-Sign in to the other targets with `npx clawhub@0.23.3 login` and
-`gh auth login`. Then release.
+ClawHub publishes with the login that `npx clawhub@0.23.3 login` stores in the
+ClawHub CLI config file. Export `CLAWHUB_CONFIG_PATH` with that file's path. On
+macOS the CLI writes it to `~/Library/Application Support/clawhub/config.json`.
+Sign in to GitHub with `gh auth login`. Then release.
 
 1. Merge the version bump to master. Tag that commit `v<version>` and push the
    tag.
 2. Check out the tag in a clean checkout.
 3. Run `node scripts/release.mjs --dry-run`. It builds and validates the npm package,
    the ClawHub package, and the ClawHub Skill without publishing. It also
-   confirms the Keychain item exists.
+   confirms the Keychain item exists and the ClawHub login works.
 4. Run `npm run release` in a terminal, so npm can ask for 2FA approval. It
-   publishes to npm, then the ClawHub package and Skill, then creates the
-   GitHub release with the legal notice.
+   publishes to npm first, then the ClawHub package, then the ClawHub Skill.
+   It creates the GitHub release with the legal notice last.
 
-The script stops with 1 line that names the variable when
-`NPM_KEYCHAIN_SERVICE` or `NPM_KEYCHAIN_ACCOUNT` is unset. It also stops when
+Pass `--only npm` or `--only clawhub` to release 1 registry, as in
+`node scripts/release.mjs --only npm`. That run needs only that registry's
+credential, and it still creates the GitHub release.
+
+The script checks every credential before the first upload. It stops with 1
+line that names the variable when `NPM_KEYCHAIN_SERVICE`,
+`NPM_KEYCHAIN_ACCOUNT` or `CLAWHUB_CONFIG_PATH` is unset. It also stops when
 the checkout has changes or the tag is not the current master commit. A rerun
 skips each target that already has the version.
 

@@ -4,7 +4,7 @@
 
 import { API_SPEC, APPROVAL_FREE_READS } from '../api-spec.js';
 import { IDEMPOTENCY_KEY_HEADER } from '../request.js';
-import { assertApiPath, findRoute, matchesEndpointPath } from '../routes.js';
+import { apiPathProblem, findRoute, matchesEndpointPath } from '../routes.js';
 import type { EndpointInfo, ExploreParams, TweetclawParams } from '../types.js';
 
 const DEFAULT_EXPLORE_LIMIT = 25;
@@ -91,7 +91,10 @@ function resolveCatalogRequest(
 } {
   const method = normalizeMethod(params.method);
   const { body, idempotencyKey, path } = params;
-  assertApiPath(path);
+  const pathProblem = apiPathProblem(path);
+  if (pathProblem !== undefined) {
+    throw new Error(pathProblem);
+  }
   const endpoint = findEndpoint(method, path);
   if (endpoint === undefined) {
     throw new Error(`Endpoint is not in the TweetClaw catalog. Choose a route returned by explore: ${method} ${path}`);

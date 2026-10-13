@@ -143,6 +143,12 @@ if (!packageJson.scripts?.["check:all"]?.includes("npm run check-openclaw-platfo
 if (!packageJson.scripts?.["check:all"]?.includes("npm run check-package-artifact")) {
   drifts.push("  package.json: check:all must include package artifact validation");
 }
+if (packageJson.scripts?.["check-reuse"] !== "node scripts/check-reuse.mjs") {
+  drifts.push("  package.json: check-reuse must run the pinned REUSE lint");
+}
+if (!packageJson.scripts?.["check:all"]?.includes("npm run check-reuse")) {
+  drifts.push("  package.json: check:all must include the REUSE lint");
+}
 if (!packageJson.scripts?.["check:all"]?.includes("npm run check-contract-drift")) {
   drifts.push("  package.json: check:all must include the catalog drift check");
 }

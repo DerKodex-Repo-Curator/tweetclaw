@@ -16,13 +16,15 @@ All notable public changes appear in this file.
 
 - Generate the catalog from the OpenAPI spec. Summaries, parameters, response shapes & MPP prices now come from the spec.
 - Take the MPP price of trends, X trends & the follow check from the spec.
-- Match each request to its most specific route. A search path no longer resolves to a lookup route.
+- Match each request to its most specific route.
+- Treat a redirect answer as an error, and drop 1 trailing slash from a request path.
 - Require `idempotencyKey` only where the spec requires the header. Write status polls no longer need one.
 - Count operations in 1 generated README block. Other copy no longer states route counts.
 - Register the plugin through the OpenClaw SDK entry, with its schema wrapper, tool labels & result metadata.
 - Build against OpenClaw 2026.9.6. Supported hosts stay at 2026.7.1 or newer.
 - Pin the optional MPP packages to mppx 0.13.4 & viem 2.57.5.
-- Publish npm releases with a token from the macOS Keychain.
+- Publish npm releases with a token from the macOS Keychain. Release npm or ClawHub alone with `--only`.
+- Run the REUSE lint in `check:all`.
 
 ### Fixed
 
@@ -30,8 +32,9 @@ All notable public changes appear in this file.
 
 ### Security
 
+- The request layer now refuses any route outside the catalog and any path that is not sent as written.
+- Payments are limited to TweetClaw's own requests, with a price cap for each route.
 - Update proxy-addr, the MCP SDK, source-map-js & smol-toml to patched releases.
-- Block guest wallet, connection challenge & support file routes at the request layer.
 
 ### Removed
 

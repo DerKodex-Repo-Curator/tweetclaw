@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import { MPP_OFFERS } from './api-spec.js';
-import { assertApiPath, canonicalPath, findRoute } from './routes.js';
+import { apiPathProblem, canonicalPath, findRoute } from './routes.js';
 import type { EndpointInfo, FetchFunction, PayingFetch, RequestFunction, RequestOptions } from './types.js';
 
 const FETCH_TIMEOUT_MS = 30_000;
@@ -94,30 +94,27 @@ function isStaticallyRefused(method: string, path: string): boolean {
       : target.startsWith(`${family.path}/`));
 }
 
+type Verdict = { readonly endpoint: EndpointInfo } | { readonly refusal: string };
+
+const BLOCKED_FOR_AGENTS =
+  'Endpoint is blocked for agents. Complete account, credential, billing, or support administration at dashboard.xquik.com.';
+
 // A request goes out only when it names an operation the catalog lists as
 // agent-callable and the static list does not refuse. Every other request is
 // refused, whatever the reason the catalog lacks it.
-function findCallableEndpoint(method: string, path: string): EndpointInfo {
-  assertApiPath(path);
+function judgeRequest(method: string, path: string): Verdict {
+  const pathProblem = apiPathProblem(path);
+  if (pathProblem !== undefined) return { refusal: pathProblem };
+  if (isStaticallyRefused(method, path)) return { refusal: BLOCKED_FOR_AGENTS };
   const route = findRoute(method, path);
   if (route === undefined) {
-    throw new Error(`Endpoint is not in the TweetClaw catalog. Choose a route returned by explore: ${method} ${path}`);
+    return { refusal: `Endpoint is not in the TweetClaw catalog. Choose a route returned by explore: ${method} ${path}` };
   }
-  if (isStaticallyRefused(method, path) || route.endpoint === undefined) {
-    throw new Error(
-      'Endpoint is blocked for agents. Complete account, credential, billing, or support administration at dashboard.xquik.com.',
-    );
-  }
-  return route.endpoint;
+  return route.endpoint === undefined ? { refusal: BLOCKED_FOR_AGENTS } : { endpoint: route.endpoint };
 }
 
 function isProhibitedRequest(method: string, path: string): boolean {
-  try {
-    findCallableEndpoint(method.toUpperCase(), path);
-    return false;
-  } catch {
-    return true;
-  }
+  return 'refusal' in judgeRequest(method.toUpperCase(), path);
 }
 
 // A route with a listed MPP offer goes through a fetch that pays that offer.
@@ -211,7 +208,11 @@ function createProxiedRequest(
 ): RequestFunction {
   return async (path: string, options?: Readonly<RequestOptions>): Promise<unknown> => {
     const method = (options?.method ?? 'GET').toUpperCase();
-    const activeFetch = fetchFor(findCallableEndpoint(method, path), fetchFunction, payFor);
+    const verdict = judgeRequest(method, path);
+    if ('refusal' in verdict) {
+      throw new Error(verdict.refusal);
+    }
+    const activeFetch = fetchFor(verdict.endpoint, fetchFunction, payFor);
     const hasBody = options?.body !== undefined;
     const response = await activeFetch(buildFetchUrl(baseUrl, canonicalPath(path), options?.query), {
       ...(hasBody ? { body: JSON.stringify(options.body) } : {}),
