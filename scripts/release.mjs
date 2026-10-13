@@ -7,8 +7,12 @@
 // Publishes the checked-out release tag to npm, ClawHub, and GitHub from a
 // maintainer machine. docs/clawpack-release.md lists the checks to pass first.
 // Each step skips a target that already has this version, so a rerun resumes
-// after a failure. `--dry-run` validates every step and publishes nothing;
-// it skips npm when npm already has the version.
+// after a failure. `--dry-run` validates every step and publishes nothing. It
+// skips npm when npm already has the version.
+//
+// npm publishes with the token in the macOS Keychain item that
+// NPM_KEYCHAIN_SERVICE and NPM_KEYCHAIN_ACCOUNT name. The machine's own npm
+// sign-in is never used.
 
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -16,6 +20,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
+import { missingKeychainSetting } from "./with-npm-token.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const repository = "Xquik-dev/tweetclaw";
@@ -105,10 +110,13 @@ async function publishNpm() {
     say(`npm already has ${name}@${version}.`);
     return;
   }
-  run("node", ["scripts/publish-clean.mjs", ...(dryRun ? ["--dry-run"] : [])]);
-  if (!dryRun) {
-    await waitFor("npm", () => npmHasVersion());
+  if (dryRun) {
+    run("node", ["scripts/with-npm-token.mjs", "--check"]);
+    run("node", ["scripts/publish-clean.mjs", "--dry-run"]);
+    return;
   }
+  run("node", ["scripts/with-npm-token.mjs", "node", "scripts/publish-clean.mjs"]);
+  await waitFor("npm", () => npmHasVersion());
 }
 
 async function publishClawhubPackage(source) {
@@ -184,6 +192,11 @@ function createGithubRelease() {
   } finally {
     rmSync(folder, { force: true, recursive: true });
   }
+}
+
+const missingSetting = missingKeychainSetting();
+if (missingSetting !== undefined) {
+  stop(missingSetting);
 }
 
 const commit = dryRun ? capture("git", ["rev-parse", "HEAD"]) : verifyReleaseRef();

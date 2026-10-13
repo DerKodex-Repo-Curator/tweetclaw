@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: MIT
 
+import { findRoute } from './routes.js';
 import type { FetchFunction, RequestFunction, RequestOptions } from './types.js';
 
 const FETCH_TIMEOUT_MS = 30_000;
@@ -12,14 +13,12 @@ const IDEMPOTENCY_KEY_HEADER = 'Idempotency-Key';
 const BEARER_PREFIX = 'Bearer ';
 const API_KEY_PREFIX = 'xq_';
 const API_V1_PREFIX = '/api/v1/';
-const SUPPORT_TICKETS_PREFIX = '/api/v1/support/tickets';
 const MAX_SAFE_ERROR_CODE_LENGTH = 80;
 
 function buildAuthHeader(credential: string): Record<string, string> {
-  if (credential.startsWith(API_KEY_PREFIX)) {
-    return { [API_KEY_HEADER]: credential };
-  }
-  return { [AUTHORIZATION_HEADER]: `${BEARER_PREFIX}${credential}` };
+  return credential.startsWith(API_KEY_PREFIX)
+    ? { [API_KEY_HEADER]: credential }
+    : { [AUTHORIZATION_HEADER]: `${BEARER_PREFIX}${credential}` };
 }
 
 function buildFetchHeaders(
@@ -64,30 +63,6 @@ function buildFetchUrl(baseUrl: string, path: string, query?: Readonly<Record<st
   return url.toString();
 }
 
-const PROHIBITED_PATHS: ReadonlyArray<readonly [string, string]> = [
-  ['PATCH', '/api/v1/account'],
-  ['PUT', '/api/v1/account/x-identity'],
-  ['GET', '/api/v1/api-keys'],
-  ['POST', '/api/v1/api-keys'],
-  ['POST', '/api/v1/credits/topup'],
-  ['GET', '/api/v1/credits/topup/status'],
-  ['POST', '/api/v1/credits/quick-topup'],
-  ['POST', '/api/v1/subscribe'],
-  ['POST', '/api/v1/x/accounts'],
-  ['POST', '/api/v1/x/accounts/'],
-  ['POST', '/api/v1/x/accounts/bulk-retry'],
-];
-
-const PROHIBITED_PATH_PATTERNS: ReadonlyArray<readonly [string, RegExp]> = [
-  ['DELETE', /^\/api\/v1\/api-keys\/[^/]+\/?$/u],
-  ['GET', /^\/api\/v1\/x\/account-connection-attempts\/[^/]+\/?$/u],
-  ['DELETE', /^\/api\/v1\/x\/accounts\/[^/]+\/?$/u],
-  ['GET', /^\/api\/v1\/x\/accounts\/[^/]+\/?$/u],
-  ['POST', /^\/api\/v1\/x\/accounts\/[^/]+\/reauth\/?$/u],
-];
-
-const SUPPORT_TICKET_METHODS: ReadonlySet<string> = new Set(['GET', 'PATCH', 'POST']);
-
 function normalizeProhibitedPath(path: string): string {
   let end = path.length;
   while (end > 1 && path.charAt(end - 1) === '/') {
@@ -96,21 +71,11 @@ function normalizeProhibitedPath(path: string): string {
   return end === path.length ? path : path.slice(0, end);
 }
 
-function isSupportTicketPath(method: string, path: string): boolean {
-  return SUPPORT_TICKET_METHODS.has(method)
-    && (path === SUPPORT_TICKETS_PREFIX || path.startsWith(`${SUPPORT_TICKETS_PREFIX}/`));
-}
-
+// True when the request names an operation the catalog leaves out or marks
+// dashboard-only. The generated contract lists both.
 function isProhibitedRequest(method: string, path: string): boolean {
-  const upperMethod = method.toUpperCase();
-  const normalizedPath = normalizeProhibitedPath(path);
-  const matchesStaticPath = PROHIBITED_PATHS.some(
-    ([blockedMethod, blockedPath]) => upperMethod === blockedMethod && normalizedPath === blockedPath,
-  );
-  const matchesPattern = PROHIBITED_PATH_PATTERNS.some(
-    ([blockedMethod, pattern]) => upperMethod === blockedMethod && pattern.test(normalizedPath),
-  );
-  return matchesStaticPath || matchesPattern || isSupportTicketPath(upperMethod, normalizedPath);
+  const route = findRoute(method.toUpperCase(), normalizeProhibitedPath(path));
+  return route !== undefined && route.endpoint === undefined;
 }
 
 function validateRequestPath(method: string, path: string): void {
@@ -173,10 +138,7 @@ function stringErrorCode(value: unknown): string | undefined {
   if ('error' in value && typeof value.error === 'string') {
     return value.error;
   }
-  if ('code' in value && typeof value.code === 'string') {
-    return value.code;
-  }
-  return undefined;
+  return 'code' in value && typeof value.code === 'string' ? value.code : undefined;
 }
 
 function safeErrorCode(value: unknown): string | undefined {
@@ -189,10 +151,7 @@ function formatApiError(response: Response, payload: unknown): string {
     ? `${String(response.status)} ${response.statusText}`
     : String(response.status);
   const code = safeErrorCode(payload);
-  if (code === undefined) {
-    return `Xquik API returned ${status}.`;
-  }
-  return `Xquik API returned ${status} (${code}).`;
+  return code === undefined ? `Xquik API returned ${status}.` : `Xquik API returned ${status} (${code}).`;
 }
 
 function createProxiedRequest(
@@ -219,4 +178,11 @@ function createProxiedRequest(
   };
 }
 
-export { buildAuthHeader, buildFetchHeaders, buildFetchUrl, createProxiedRequest, isProhibitedRequest };
+export {
+  buildAuthHeader,
+  buildFetchHeaders,
+  buildFetchUrl,
+  createProxiedRequest,
+  IDEMPOTENCY_KEY_HEADER,
+  isProhibitedRequest,
+};

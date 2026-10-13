@@ -71,10 +71,7 @@ function formatAccountStatus(account: AccountResponse): string {
 
 async function handleXStatus(request: RequestFunction): Promise<string> {
   const result: unknown = await request('/api/v1/account');
-  if (!isAccountResponse(result)) {
-    return 'Xquik account status';
-  }
-  return formatAccountStatus(result);
+  return isAccountResponse(result) ? formatAccountStatus(result) : 'Xquik account status';
 }
 
 export { formatAccountStatus, handleXStatus };

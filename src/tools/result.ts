@@ -6,10 +6,7 @@ import { truncateResponse } from '../truncate.js';
 import type { ToolResult } from '../types.js';
 
 function extractErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return `${error.constructor.name}: ${error.message}`;
-  }
-  return String(error);
+  return error instanceof Error ? `${error.constructor.name}: ${error.message}` : String(error);
 }
 
 function successResult(content: unknown): ToolResult {

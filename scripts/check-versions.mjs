@@ -7,9 +7,10 @@
 // Pre-publish / pre-commit guard: fails if any known version surface
 // disagrees with package.json.
 
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { replaceCoverage } from "./contract-files.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const packageJson = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
@@ -17,6 +18,7 @@ const expected = packageJson.version;
 
 const surfaces = [
   { path: "openclaw.plugin.json", get: (j) => JSON.parse(j).version },
+  { path: "skills/tweetclaw/skill-card.md", get: (text) => /Package version `([^`]+)`/u.exec(text)?.[1] },
 ];
 
 const drifts = [];
@@ -111,7 +113,10 @@ if (packageJson.scripts?.postpack !== "node scripts/pack-package-json.mjs restor
 if (packageJson.scripts?.["check-package-artifact"] !== "node scripts/check-package-artifact.mjs") {
   drifts.push("  package.json: check-package-artifact must validate packed files");
 }
-if (packageJson.scripts?.["check-contract-drift"] !== "npm run build && node scripts/check-contract-drift.mjs") {
+if (packageJson.scripts?.["generate-api-contract"] !== "node scripts/generate-api-contract.mjs") {
+  drifts.push("  package.json: generate-api-contract must build the catalog from OpenAPI");
+}
+if (packageJson.scripts?.["check-contract-drift"] !== "node scripts/generate-api-contract.mjs --check") {
   drifts.push("  package.json: check-contract-drift must compare the bundled catalog with OpenAPI");
 }
 if (packageJson.scripts?.["publish-clean"] !== "node scripts/publish-clean.mjs") {
@@ -137,6 +142,9 @@ if (!packageJson.scripts?.["check:all"]?.includes("npm run check-openclaw-platfo
 }
 if (!packageJson.scripts?.["check:all"]?.includes("npm run check-package-artifact")) {
   drifts.push("  package.json: check:all must include package artifact validation");
+}
+if (!packageJson.scripts?.["check:all"]?.includes("npm run check-contract-drift")) {
+  drifts.push("  package.json: check:all must include the catalog drift check");
 }
 
 const requiredCompilerOptions = {
@@ -164,18 +172,35 @@ for (const configPath of ["tsconfig.json", "tsconfig.eslint.json"]) {
   }
 }
 
+// Counts and install versions that earlier releases stated by hand. The API
+// coverage block in README.md is now the only place that counts operations.
+const retiredFacts = [
+  "102 agent-callable endpoints",
+  "102 endpoints",
+  "33 public paid-read routes",
+  "33 prepaid public",
+  "7 direct MPP routes",
+  "7 direct read routes",
+  "7 read-only routes",
+  "exactly 7",
+];
+const positioning =
+  "the world's fastest and cheapest X Twitter scraper service with the most complete X data";
+const legalLine =
+  'Xquik is an independent third-party service. Not affiliated with X Corp. "Twitter" and "X" are trademarks of X Corp.';
+const listingDescription = packageJson.description;
+
 const contentChecks = [
   {
     path: "README.md",
     required: [
       "account-backed X automation",
-      "102 agent-callable endpoints across 9 categories",
+      positioning,
+      "Xquik charges only for delivered, unique, filter-matching results and never pads rows.",
+      legalLine,
       "verified ClawHub publisher scope",
       "for current plans, eligible endpoints, and live prices",
       "Account-backed or MPP where eligible",
-      "33 public paid-read routes",
-      "7 direct MPP routes",
-      "Not affiliated with X Corp.",
     ],
     forbidden: [
       "about 33x cheaper",
@@ -192,12 +217,12 @@ const contentChecks = [
   },
   {
     path: "skills/tweetclaw/SKILL.md",
-    required: ["local Xquik endpoint catalog", "billing guide", "33 public paid-read routes", "7 direct read routes", "idempotencyKey", "Not affiliated with X Corp."],
+    required: ["local Xquik endpoint catalog", "billing guide", "idempotencyKey", "Not affiliated with X Corp."],
     forbidden: ["113 endpoints", "112 endpoints", "Per-Operation Costs", "/api/v1/x/users/{id}/unfollow", "/api/v1/x/users/:username"],
   },
   {
     path: "docs/context7-agent-guide.md",
-    required: ["102 endpoints", "2026.7.1"],
+    required: ["2026.7.1"],
     forbidden: ["99 endpoints", "2026.5.4"],
   },
   {
@@ -206,25 +231,14 @@ const contentChecks = [
     forbidden: ["/api/v1/x/users/by-username/:username", "2026.5.4"],
   },
   {
-    path: "src/api-spec.ts",
-    required: [
-      "/api/v1/credits/topup/status",
-      "/api/v1/webhooks/:id/resume",
-      "/api/v1/x/users/:id/replies",
-      "/api/v1/x/write-actions/:id",
-      "Idempotency-Key",
-    ],
-    forbidden: [
-      "/api/v1/x/users/by-username/:username",
-      "/api/v1/x/users/:id/unfollow",
-      "attachment_url",
-      "reply_to_message_id",
-    ],
+    path: "openclaw.plugin.json",
+    required: [listingDescription, "Not affiliated with X Corp."],
+    forbidden: ["113 endpoints", "112 endpoints"],
   },
   {
-    path: "openclaw.plugin.json",
-    required: ["structured Xquik endpoints", "7 direct read routes", "Not affiliated with X Corp."],
-    forbidden: ["113 endpoints", "112 endpoints"],
+    path: "context7.json",
+    required: [listingDescription],
+    forbidden: [],
   },
 ];
 
@@ -240,6 +254,36 @@ for (const check of contentChecks) {
       drifts.push(`  ${check.path}: stale "${forbidden}"`);
     }
   }
+}
+
+// No copy file may restate a retired count. Copy that names an optional MPP
+// package version must name the pinned one.
+const copyFiles = [
+  "README.md",
+  "context7.json",
+  "openclaw.plugin.json",
+  ...readdirSync(join(root, "docs")).map((name) => `docs/${name}`),
+  ...readdirSync(join(root, "skills/tweetclaw")).filter((name) => name.endsWith(".md")).map((name) => `skills/tweetclaw/${name}`),
+];
+for (const path of copyFiles) {
+  const raw = readFileSync(join(root, path), "utf8");
+  for (const fact of retiredFacts) {
+    if (raw.includes(fact)) {
+      drifts.push(`  ${path}: stale "${fact}"`);
+    }
+  }
+  for (const [mention, name, version] of raw.matchAll(/\b(mppx|viem)@(\d+\.\d+\.\d+)/gu)) {
+    if (version !== packageJson.peerDependencies?.[name]) {
+      drifts.push(`  ${path}: ${mention} (expected ${name}@${packageJson.peerDependencies?.[name]})`);
+    }
+  }
+}
+
+// The README coverage block must be the one the committed catalog renders.
+const readme = readFileSync(join(root, "README.md"), "utf8");
+const { counts } = JSON.parse(readFileSync(join(root, "generated-api-contract.json"), "utf8"));
+if (replaceCoverage(readme, counts) !== readme) {
+  drifts.push("  README.md: the API coverage block differs from generated-api-contract.json. Run npm run generate-api-contract.");
 }
 
 if (drifts.length > 0) {

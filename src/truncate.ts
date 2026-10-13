@@ -19,10 +19,7 @@ function stringifyContent(content: unknown): string {
   if (typeof content === 'string') {
     return content;
   }
-  if (content === undefined) {
-    return 'undefined';
-  }
-  return JSON.stringify(content, undefined, 2);
+  return content === undefined ? 'undefined' : JSON.stringify(content, undefined, 2);
 }
 
 function truncateResponse(content: unknown): string {

@@ -4,17 +4,28 @@ Validate the package before publishing. Xquik is an independent third-party serv
 
 ## Verify release metadata
 
-Keep `package.json`, `openclaw.plugin.json`, and `CHANGELOG.md` aligned. Publish
+Keep `package.json`, `openclaw.plugin.json`, `skills/tweetclaw/skill-card.md`,
+and `CHANGELOG.md` aligned. `npm run check-versions` compares them. Publish
 through verified ClawHub, with npm as the fallback.
 
-Document 33 prepaid public read routes and exactly 7 direct MPP routes: tweet
-lookup, user lookup, follower check, article lookup, trends, X trends, and
-community info.
+## Refresh the endpoint catalog
+
+`generated-api-contract.json` holds the endpoint catalog. Run
+`npm run generate-api-contract` after the Xquik API changes. It builds the
+catalog from the live OpenAPI spec and rewrites the API coverage block in
+`README.md`. Never edit either by hand.
+
+`scripts/catalog-policy.mjs` is the only hand-kept part. It lists the operations
+an agent must not call, the private reads, the reads that skip approval, and the
+category of each spec tag.
+
+`npm run check-contract-drift` fails when the live spec and the catalog differ.
+Run the generator, review the diff, and commit it.
 
 ## Run release checks
 
 Run every source, package, dependency, and license check on a clean checkout
-of the release commit:
+of the release commit.
 
 ```bash
 npm ci
@@ -22,12 +33,16 @@ npm run check:all
 uv tool run --from reuse==6.2.0 reuse lint
 ```
 
-`check:all` ends with `npm audit --audit-level=low`. All checks must pass
-before packing or publishing.
+`check:all` ends with the catalog drift check and `npm audit --audit-level=low`.
+Both need network access. All checks must pass before packing or publishing.
+
+Regenerate `package-lock.json` with the npm version that `packageManager` names.
+That npm needs `--allow-remote=all` to read OpenClaw's bundled dependencies.
+`npm ci` needs no flag.
 
 ## Inspect the package artifact
 
-Create and inspect the exact artifact that users will install:
+Create and inspect the exact artifact that users will install.
 
 ```bash
 npm pack
@@ -43,19 +58,38 @@ Confirm the artifact contains `dist/`, `openclaw.plugin.json`, and
 ## Publish
 
 Releases run from a maintainer machine. GitHub Actions and trusted publishing
-are not used. Sign in first with `npm login`, `npx clawhub@0.23.3 login`, and
-`gh auth login`.
+are not used.
+
+npm publishes with a token from the macOS Keychain. The release never uses the
+machine's own npm sign-in and never prints the token. Set it up once.
+
+1. Choose a service name and an account name for the Keychain item. Keep both
+   out of this repository.
+2. Export `NPM_KEYCHAIN_SERVICE` and `NPM_KEYCHAIN_ACCOUNT` with those names.
+3. Run `security add-generic-password -s "$NPM_KEYCHAIN_SERVICE" -a "$NPM_KEYCHAIN_ACCOUNT" -w`
+   and paste the npm token when it asks.
+
+Sign in to the other targets with `npx clawhub@0.23.3 login` and
+`gh auth login`. Then release.
 
 1. Merge the version bump to master. Tag that commit `v<version>` and push the
    tag.
 2. Check out the tag in a clean checkout.
 3. Run `node scripts/release.mjs --dry-run`. It builds and validates the npm package,
-   the ClawHub package, and the ClawHub Skill without publishing.
-4. Run `npm run release`. It publishes to npm, then the ClawHub package and
-   Skill, then creates the GitHub release with the legal notice.
+   the ClawHub package, and the ClawHub Skill without publishing. It also
+   confirms the Keychain item exists.
+4. Run `npm run release` in a terminal, so npm can ask for 2FA approval. It
+   publishes to npm, then the ClawHub package and Skill, then creates the
+   GitHub release with the legal notice.
 
-The script stops when the checkout has changes or the tag is not the current
-master commit. A rerun skips each target that already has the version.
+The script stops with 1 line that names the variable when
+`NPM_KEYCHAIN_SERVICE` or `NPM_KEYCHAIN_ACCOUNT` is unset. It also stops when
+the checkout has changes or the tag is not the current master commit. A rerun
+skips each target that already has the version.
+
+`scripts/with-npm-token.mjs` reads the token into a temporary npm user config
+with mode 600. The file exists only while `npm publish` runs. The release uses
+no provenance and no OIDC.
 
 ## Verify public readbacks
 

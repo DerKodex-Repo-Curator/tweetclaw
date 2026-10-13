@@ -2,6 +2,41 @@
 
 All notable public changes appear in this file.
 
+## [1.7.0] - 2026-10-13
+
+### Added
+
+- Catalog 50 more Xquik API operations. Agents can now call 152 of the 180 in the live OpenAPI spec.
+- Add user, tweet, community, list, Space, broadcast, job & trend reads.
+- Add 6 AI analysis routes, DM deletion, extraction cancel & Telegram webhook links.
+- Mark 13 MPP routes, up from 7. List, broadcast, Space, Space replay, tweet translation & tweet embed lookups now accept MPP.
+- Add `npm run generate-api-contract`. It builds the catalog from the live OpenAPI spec.
+
+### Changed
+
+- Generate the catalog from the OpenAPI spec. Summaries, parameters, response shapes & MPP prices now come from the spec.
+- Take the MPP price of trends, X trends & the follow check from the spec.
+- Match each request to its most specific route. A search path no longer resolves to a lookup route.
+- Require `idempotencyKey` only where the spec requires the header. Write status polls no longer need one.
+- Count operations in 1 generated README block. Other copy no longer states route counts.
+- Register the plugin through the OpenClaw SDK entry, with its schema wrapper, tool labels & result metadata.
+- Build against OpenClaw 2026.9.6. Supported hosts stay at 2026.7.1 or newer.
+- Pin the optional MPP packages to mppx 0.13.4 & viem 2.57.5.
+- Publish npm releases with a token from the macOS Keychain.
+
+### Fixed
+
+- Refuse the event stream route, which the tool cannot read.
+
+### Security
+
+- Update proxy-addr, the MCP SDK, source-map-js & smol-toml to patched releases.
+- Block guest wallet, connection challenge & support file routes at the request layer.
+
+### Removed
+
+- Remove the Dependabot configuration.
+
 ## [1.6.44] - 2026-08-21
 
 - Mark secret config fields for registry discovery and remove repeated tool-call scripts.
@@ -36,3 +71,4 @@ All notable public changes appear in this file.
 [1.6.42]: https://github.com/Xquik-dev/tweetclaw/releases/tag/v1.6.42
 [1.6.43]: https://github.com/Xquik-dev/tweetclaw/releases/tag/v1.6.43
 [1.6.44]: https://github.com/Xquik-dev/tweetclaw/releases/tag/v1.6.44
+[1.7.0]: https://github.com/Xquik-dev/tweetclaw/releases/tag/v1.7.0

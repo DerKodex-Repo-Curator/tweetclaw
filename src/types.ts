@@ -13,15 +13,15 @@ interface EndpointParameter {
 }
 
 interface EndpointInfo {
-  readonly agentProhibited?: true;
+  readonly agentProhibited?: boolean;
   readonly category: string;
   readonly free: boolean;
   readonly method: string;
   readonly mpp?: { readonly intent: 'charge'; readonly price: string };
-  readonly parameters?: readonly EndpointParameter[];
+  readonly parameters: readonly EndpointParameter[];
   readonly path: string;
-  readonly responseShape?: string;
-  readonly sensitive?: true;
+  readonly responseShape: string;
+  readonly sensitive?: boolean;
   readonly summary: string;
 }
 

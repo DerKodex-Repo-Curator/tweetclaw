@@ -101,17 +101,25 @@ describe('catalog matching', () => {
 });
 
 describe('specEndpoints', () => {
-  it('embeds one-time approval guidance in all 18 X mutation definitions', () => {
+  it('embeds one-time approval guidance in every X mutation definition', () => {
     expect.assertions(2);
     const writeEndpoints = exploreCatalog({ category: 'x-write', limit: 100 })
       .filter((endpoint) => endpoint.method !== 'GET');
-    expect(writeEndpoints).toHaveLength(18);
+    expect(writeEndpoints.map((endpoint) => `${endpoint.method} ${endpoint.path}`)).toStrictEqual(
+      expect.arrayContaining([
+        'POST /api/v1/x/tweets',
+        'DELETE /api/v1/x/tweets/:id',
+        'POST /api/v1/x/dm/:userId',
+        'DELETE /api/v1/x/dm/:userId/messages/:messageId',
+        'PATCH /api/v1/x/profile',
+      ]),
+    );
     expect(
-      writeEndpoints.every((endpoint) =>
-        endpoint.summary.includes(
+      writeEndpoints.filter((endpoint) =>
+        !endpoint.summary.includes(
           'Requires one-time approval after showing the exact target and payload.',
         )),
-    ).toBe(true);
+    ).toStrictEqual([]);
   });
 
   it('excludes agent-prohibited endpoints', () => {

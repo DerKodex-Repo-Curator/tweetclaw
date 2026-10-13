@@ -2,12 +2,17 @@
 //
 // SPDX-License-Identifier: MIT
 
+import PACKAGE from '../package.json' with { type: 'json' };
+
 type MppModuleName = 'mppx/client' | 'viem/accounts';
 type ModuleLoader = (name: MppModuleName) => Promise<Record<string, unknown>>;
 
 const TEMPO_SIGNING_KEY_PATTERN = /^0x[0-9a-fA-F]{64}$/u;
 const MPP_CLIENT_MODULE: MppModuleName = 'mppx/client';
 const VIEM_ACCOUNTS_MODULE: MppModuleName = 'viem/accounts';
+// Names the versions package.json pins, so the hint cannot fall behind them.
+const INSTALL_HINT =
+  `Run npm i mppx@${PACKAGE.peerDependencies.mppx} viem@${PACKAGE.peerDependencies.viem}.`;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -40,10 +45,10 @@ async function initMpp(tempoSigningKey: string, loadModule?: ModuleLoader): Prom
 
   const load = loadModule ?? createModuleLoader();
   const mppxMod = await load(MPP_CLIENT_MODULE).catch((): never => {
-    throw new Error('mppx is missing. Run npm i mppx@0.8.12 viem@2.55.4.');
+    throw new Error(`mppx is missing. ${INSTALL_HINT}`);
   });
   const viemMod = await load(VIEM_ACCOUNTS_MODULE).catch((): never => {
-    throw new Error('viem is missing. Run npm i mppx@0.8.12 viem@2.55.4.');
+    throw new Error(`viem is missing. ${INSTALL_HINT}`);
   });
   if (!isCallable(viemMod['privateKeyToAccount'])) throw new Error('viem export is missing: privateKeyToAccount');
   if (!isCallable(mppxMod['tempo'])) throw new Error('mppx export is missing: tempo');

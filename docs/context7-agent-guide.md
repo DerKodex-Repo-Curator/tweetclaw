@@ -4,16 +4,16 @@ Use this concise contract for setup, safety, MPP, catalog, and troubleshooting f
 
 Xquik is an independent third-party service. Not affiliated with X Corp. "Twitter" and "X" are trademarks of X Corp.
 
-TweetClaw gives OpenClaw 2 tools:
+TweetClaw gives OpenClaw 2 tools.
 
-- `explore`: free local endpoint catalog search. It makes no network request.
-- `tweetclaw`: structured Xquik API invoker for catalog-listed endpoints only.
+- `explore` searches the local endpoint catalog for free. It makes no network request.
+- `tweetclaw` calls catalog-listed Xquik API endpoints only.
 
 Without credentials, `explore` works and live calls return setup guidance.
 
 ## Install
 
-Install the verified package:
+Install the verified package.
 
 ```bash
 openclaw plugins install clawhub:@xquik/tweetclaw
@@ -21,14 +21,14 @@ openclaw plugins install clawhub:@xquik/tweetclaw
 
 Install metadata keeps the exact ClawHub and npm package references.
 
-Verify the install:
+Verify the install.
 
 ```bash
 openclaw plugins inspect tweetclaw --runtime
 openclaw skills info tweetclaw
 ```
 
-If the agent can read the skill but cannot call the plugin tools, keep the normal OpenClaw tool profile and add only the TweetClaw tools:
+If the agent can read the skill but cannot call the plugin tools, keep the normal OpenClaw tool profile and add only the TweetClaw tools.
 
 ```bash
 openclaw config set tools.alsoAllow '["explore", "tweetclaw"]'
@@ -39,21 +39,21 @@ openclaw config set tools.alsoAllow '["explore", "tweetclaw"]'
 | Mode | Config | What it enables |
 |------|--------|-----------------|
 | No credentials | none | Install, skill docs, and `explore` catalog search |
-| API key | `plugins.entries.tweetclaw.config.apiKey` | Account-backed workflows plus 33 prepaid public paid-read routes |
-| MPP | `plugins.entries.tweetclaw.config.tempoSigningKey` | 7 direct pay-per-use read routes with no Xquik account |
+| API key | `plugins.entries.tweetclaw.config.apiKey` | Account-backed workflows plus prepaid public paid-read routes |
+| MPP | `plugins.entries.tweetclaw.config.tempoSigningKey` | Direct pay-per-use read routes with no Xquik account |
 
 Store credentials in OpenClaw plugin config. Do not paste API keys or signing keys into chat, docs, logs, screenshots, issue bodies, or tool arguments.
 
-API key setup:
+Set up an API key.
 
 ```bash
 openclaw config set plugins.entries.tweetclaw.config.apiKey "$XQUIK_API_KEY"
 ```
 
-MPP setup:
+Set up MPP.
 
 ```bash
-npm i mppx@0.8.12 viem@2.55.4
+npm i mppx@0.13.4 viem@2.57.5
 openclaw config set plugins.entries.tweetclaw.config.tempoSigningKey "$MPP_SIGNING_KEY"
 ```
 
@@ -83,23 +83,24 @@ Confirm authorization before private reads. Minimize private data in summaries.
 
 With only `tempoSigningKey`, never attempt writes or account-backed workflows.
 
-Direct MPP covers exactly 7 routes: tweet lookup, user lookup, follower check, article lookup, trends, X trends, and community info. Other paid reads require an API key with prepaid credits. Media download requires account-backed access.
+Direct MPP covers only the read routes that `explore` marks with `mpp`. Other paid reads require an API key with prepaid credits. Media download requires account-backed access.
 
 Use `explore` with `mpp: true` to find MPP-eligible endpoints.
 
 ## Endpoint catalog
 
-The runtime accepts only endpoints listed in `src/api-spec.ts` after dashboard-only and sensitive admin routes are filtered out. Runtime matching requires `/api/v1/` paths and rejects query strings embedded in the path.
+The runtime accepts only endpoints listed in `generated-api-contract.json` after dashboard-only and sensitive admin routes are filtered out. Runtime matching requires `/api/v1/` paths and rejects query strings embedded in the path.
 
-Agent-callable coverage is 102 endpoints across:
+The README counts the agent-callable endpoints. They span these areas.
 
 - Account status and usage
 - Composition, drafts, styles, and radar
 - Credit balance
 - Extraction jobs, exports, and giveaway draws
 - Authenticated media upload, media download, and gallery links
+- AI analysis of posts
 - Monitors, events, and webhooks
-- X search, tweets, users, timelines, articles, trends, bookmarks, notifications, and DMs
+- X search, tweets, users, timelines, articles, trends, lists, communities, Spaces, jobs, bookmarks, notifications, and DMs
 - Connected X accounts
 - X write actions such as post, reply, like, retweet, follow, DM, profile, and community operations
 
@@ -139,17 +140,19 @@ If MPP says an endpoint is unavailable, use `explore` with `mpp: true` and choos
 
 If a path is rejected, pass only the `/api/v1/...` path and move query parameters into the `query` object.
 
-If Context7 results mention stale endpoint counts, trust `src/api-spec.ts`, `README.md`, and `skills/tweetclaw/SKILL.md` from the latest repository state.
+If Context7 results mention stale endpoint counts, trust the API coverage section of `README.md` from the latest repository state.
 
 ## Source map
 
-- `README.md`: installation, pricing, configuration, and API coverage.
-- `docs/context7-quickstarts.md`: short setup and workflow recipes.
-- `docs/openclaw-setup.md`: install, config, verification, polling, and troubleshooting.
-- `docs/agent-workflows.md`: task flow, approvals, MPP, extraction, monitors, webhooks, media, and mistakes.
-- `skills/tweetclaw/SKILL.md`: agent safety rules and workflows.
-- `openclaw.plugin.json`: plugin manifest, config schema, sensitive UI hints, commands, tools, and skills.
-- `package.json`: npm metadata and OpenClaw install metadata.
-- `src/api-spec.ts`: endpoint catalog, categories, MPP flags, and response shapes.
-- `src/tools/catalog.ts`: endpoint matching, approval classification, and MPP enforcement.
-- `src/index.ts`: runtime registration, credentials, commands, and polling.
+| File | Contents |
+| --- | --- |
+| `README.md` | Installation, pricing, configuration, and API coverage |
+| `docs/context7-quickstarts.md` | Short setup and workflow recipes |
+| `docs/openclaw-setup.md` | Install, config, verification, polling, and troubleshooting |
+| `docs/agent-workflows.md` | Task flow, approvals, MPP, extraction, monitors, webhooks, media, and mistakes |
+| `skills/tweetclaw/SKILL.md` | Agent safety rules and workflows |
+| `openclaw.plugin.json` | Plugin manifest, config schema, sensitive UI hints, commands, tools, and skills |
+| `package.json` | npm metadata and OpenClaw install metadata |
+| `generated-api-contract.json` | Endpoint catalog, categories, MPP prices, and response shapes, generated from the Xquik OpenAPI spec |
+| `src/tools/catalog.ts` | Endpoint matching, approval classification, and MPP enforcement |
+| `src/index.ts` | Runtime registration, credentials, commands, and polling |

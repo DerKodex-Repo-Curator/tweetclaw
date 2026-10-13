@@ -12,14 +12,14 @@ const categories = [...new Set(specEndpoints.map((endpoint) => endpoint.category
 
 const SEARCH_DESCRIPTION = `Search the X (Twitter) API catalog without network calls or code execution.
 
-Filters:
-- query: summaries, paths, response fields, and parameters
-- category: one of ${categories}
-- method: GET, POST, PATCH, PUT, or DELETE
-- path: exact or partial API path
-- free: true for free endpoints, false for paid endpoints
-- mpp: true for MPP-supported endpoints only
-- limit: 1-100 results; default 25
+Filters.
+- query searches summaries, paths, response fields, and parameters
+- category takes one of ${categories}
+- method takes GET, POST, PATCH, PUT, or DELETE
+- path takes an exact or partial API path
+- free takes true for free endpoints or false for paid endpoints
+- mpp takes true for MPP-supported endpoints only
+- limit takes 1-100 results and defaults to 25
 
 Returns endpoint descriptors with method, path, summary, category, parameters, cost, and response shape.`;
 

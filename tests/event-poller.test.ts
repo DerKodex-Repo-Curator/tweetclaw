@@ -125,10 +125,9 @@ describe('createEventPoller', () => {
     let callCount = 0;
     const mockRequest: RequestFunction = async () => {
       callCount += 1;
-      if (callCount === 1) {
-        return { events: [{ eventType: 'test', noIdHere: true }] };
-      }
-      return { events: [{ eventType: 'test2', id: 42 }] };
+      return callCount === 1
+        ? { events: [{ eventType: 'test', noIdHere: true }] }
+        : { events: [{ eventType: 'test2', id: 42 }] };
     };
     const receivedEvents: unknown[] = [];
     const poller = createEventPoller({
