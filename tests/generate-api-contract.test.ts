@@ -31,6 +31,7 @@ interface StoredContract {
   }>;
   readonly parameters: readonly JsonObject[];
   readonly responseShapes: readonly string[];
+  readonly sessionOnlyOperations: readonly JsonObject[];
 }
 
 interface GeneratorRun {
@@ -124,7 +125,7 @@ const CRAFTED_PATHS: JsonObject = {
     }),
   },
   '/api/v1/launch/pads': { get: stub('Launch Pads') },
-  '/api/v1/x/accounts': { post: stub('X Accounts') },
+  '/api/v1/x/accounts': { post: stub('X Accounts', { security: [{ cookieSession: [] }] }) },
   '/api/v1/x/analysis/sentiment': { post: stub('Analysis', { responses: { '200': OK_RESPONSE, '402': PAID } }) },
   '/api/v1/x/articles/{tweetId}': {
     get: stub('Articles', {
@@ -310,7 +311,7 @@ function readContract(): Omit<StoredContract, 'operations' | 'parameters' | 'res
   readonly operations: ReadonlyMap<string, GeneratedOperation>;
 } {
   const stored: StoredContract = JSON.parse(readContractFile());
-  const { approvalFreeReads, blockedOperations, counts } = stored;
+  const { approvalFreeReads, blockedOperations, counts, sessionOnlyOperations } = stored;
   const operations = new Map<string, GeneratedOperation>();
   for (const operation of stored.operations) {
     operations.set(`${operation.method} ${operation.path}`, {
@@ -319,7 +320,7 @@ function readContract(): Omit<StoredContract, 'operations' | 'parameters' | 'res
       responseShape: stored.responseShapes[operation.responseShape] ?? '',
     });
   }
-  return { approvalFreeReads, blockedOperations, counts, operations };
+  return { approvalFreeReads, blockedOperations, counts, operations, sessionOnlyOperations };
 }
 
 function generated(): ReturnType<typeof readContract> {
@@ -446,6 +447,14 @@ describe('generate-api-contract', () => {
     expect(operations.get('PATCH /api/v1/account')?.agentProhibited).toBe(true);
     expect(operations.get('GET /api/v1/api-keys')?.agentProhibited).toBe(true);
     expect(operations.get('GET /api/v1/radar')?.agentProhibited).toBeUndefined();
+  });
+
+  it('lists every /api/v1 operation that accepts only a browser session, left out ones too', () => {
+    expect.assertions(1);
+    expect(generated().sessionOnlyOperations).toStrictEqual([
+      { method: 'GET', path: '/api/v1/api-keys' },
+      { method: 'POST', path: '/api/v1/x/accounts' },
+    ]);
   });
 
   it('marks private reads and tells the agent to wait for a request', () => {

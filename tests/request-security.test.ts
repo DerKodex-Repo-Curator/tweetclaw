@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { API_SPEC, BLOCKED_OPERATIONS, SESSION_ONLY_OPERATIONS } from '../src/api-spec.js';
 import { register } from '../src/index.js';
 import * as mpp from '../src/mpp.js';
 import { buildFetchUrl, createProxiedRequest, isStaticallyRefused } from '../src/request.js';
@@ -27,11 +28,19 @@ interface Outcome {
 
 // Routes an agent must never reach. Key management, payments, account
 // credentials, account settings and support stay in the dashboard.
-const REFUSED_ROUTES = [
+const SESSION_ONLY_ROUTES = [
   ['GET', '/api/v1/api-keys'],
   ['POST', '/api/v1/api-keys'],
   ['DELETE', '/api/v1/api-keys/key_1'],
   ['POST', '/api/v1/credits/quick-topup'],
+  ['POST', '/api/v1/x/accounts'],
+  ['DELETE', '/api/v1/x/accounts/account_1'],
+  ['POST', '/api/v1/x/accounts/account_1/reauth'],
+  ['POST', '/api/v1/x/accounts/bulk-retry'],
+  ['GET', '/api/v1/x/account-connection-attempts/attempt_1'],
+  ['POST', '/api/v1/x/account-connection-challenges/challenge_1/submit'],
+] as const;
+const DASHBOARD_ROUTES = [
   ['POST', '/api/v1/credits/topup'],
   ['GET', '/api/v1/credits/topup/status'],
   ['GET', '/api/v1/credits/topup/redirect'],
@@ -39,13 +48,7 @@ const REFUSED_ROUTES = [
   ['POST', '/api/v1/guest-wallets'],
   ['POST', '/api/v1/guest-wallets/topups'],
   ['GET', '/api/v1/guest-wallets/status'],
-  ['POST', '/api/v1/x/accounts'],
   ['GET', '/api/v1/x/accounts/account_1'],
-  ['DELETE', '/api/v1/x/accounts/account_1'],
-  ['POST', '/api/v1/x/accounts/account_1/reauth'],
-  ['POST', '/api/v1/x/accounts/bulk-retry'],
-  ['GET', '/api/v1/x/account-connection-attempts/attempt_1'],
-  ['POST', '/api/v1/x/account-connection-challenges/challenge_1/submit'],
   ['PATCH', '/api/v1/account'],
   ['PUT', '/api/v1/account/x-identity'],
   ['GET', '/api/v1/support/tickets'],
@@ -55,6 +58,7 @@ const REFUSED_ROUTES = [
   ['POST', '/api/v1/support/tickets/ticket_1/messages'],
   ['GET', '/api/v1/support/attachments/file_1'],
 ] as const;
+const REFUSED_ROUTES = [...SESSION_ONLY_ROUTES, ...DASHBOARD_ROUTES];
 
 const UNKNOWN_ROUTES = [
   ['GET', '/api/v1/not-real'],
@@ -288,17 +292,18 @@ describe('request layer', () => {
     await expect(request('/api/v1/events/stream')).rejects.toThrow('blocked for agents');
   });
 
-  it.each(REFUSED_ROUTES)('keeps %s %s on the static refusal list, whatever the catalog says', (method, path) => {
+  it.each(SESSION_ONLY_ROUTES)('keeps %s %s on the static refusal list, whatever the catalog says', (method, path) => {
     expect.assertions(1);
     expect(isStaticallyRefused(method, path)).toBe(true);
   });
 
-  it('keeps every callable route off the static refusal list', () => {
+  it('statically refuses exactly the operations the spec serves only to a dashboard session', () => {
     expect.assertions(1);
-    const refused = specEndpoints.filter(
-      (endpoint) => isStaticallyRefused(endpoint.method, endpoint.path.replaceAll(/:[^/]+/gu, '123')),
-    );
-    expect(refused.map((endpoint) => `${endpoint.method} ${endpoint.path}`)).toStrictEqual([]);
+    const refused = [...API_SPEC, ...BLOCKED_OPERATIONS]
+      .filter((operation) => isStaticallyRefused(operation.method, operation.path.replaceAll(/:[^/]+/gu, '123')))
+      .map((operation) => `${operation.method} ${operation.path}`);
+    const sessionOnly = SESSION_ONLY_OPERATIONS.map((operation) => `${operation.method} ${operation.path}`);
+    expect(refused.toSorted()).toStrictEqual(sessionOnly.toSorted());
   });
 
   it.each([301, 302, 303, 307, 308])('stops at a %i redirect instead of sending the key to another address', async (status) => {

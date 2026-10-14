@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import { MPP_OFFERS } from './api-spec.js';
-import { apiPathProblem, canonicalPath, findRoute } from './routes.js';
+import { apiPathProblem, canonicalPath, findRoute, matchesEndpointPath } from './routes.js';
 import type { EndpointInfo, FetchFunction, PayingFetch, RequestFunction, RequestOptions } from './types.js';
 
 const FETCH_TIMEOUT_MS = 30_000;
@@ -69,29 +69,24 @@ function buildFetchUrl(baseUrl: string, path: string, query?: Readonly<Record<st
   return url.toString();
 }
 
-// Path families an agent never reaches, whatever the generated catalog says.
-// Key management, payments, account credentials, account settings and support
-// stay in the dashboard. A family covers its own path and every path under it,
-// for every method. A `readable` family still allows a GET of its own path.
-// This list is written by hand on purpose, so no spec change can open a route.
-const REFUSED_PATH_FAMILIES: ReadonlyArray<{ readonly path: string; readonly readable?: true }> = [
-  { path: '/api/v1/account', readable: true },
-  { path: '/api/v1/api-keys' },
-  { path: '/api/v1/credits', readable: true },
-  { path: '/api/v1/guest-wallets' },
-  { path: '/api/v1/subscribe' },
-  { path: '/api/v1/support' },
-  { path: '/api/v1/x/account-connection-attempts' },
-  { path: '/api/v1/x/account-connection-challenges' },
-  { path: '/api/v1/x/accounts', readable: true },
+const REFUSED_OPERATIONS: ReadonlyArray<{ readonly method: string; readonly path: string }> = [
+  { method: 'GET', path: '/api/v1/api-keys' },
+  { method: 'POST', path: '/api/v1/api-keys' },
+  { method: 'DELETE', path: '/api/v1/api-keys/:id' },
+  { method: 'POST', path: '/api/v1/credits/quick-topup' },
+  { method: 'GET', path: '/api/v1/x/account-connection-attempts/:id' },
+  { method: 'POST', path: '/api/v1/x/account-connection-challenges/:id/submit' },
+  { method: 'POST', path: '/api/v1/x/accounts' },
+  { method: 'DELETE', path: '/api/v1/x/accounts/:id' },
+  { method: 'POST', path: '/api/v1/x/accounts/:id/reauth' },
+  { method: 'POST', path: '/api/v1/x/accounts/bulk-retry' },
 ];
 
 function isStaticallyRefused(method: string, path: string): boolean {
-  const target = canonicalPath(path);
-  return REFUSED_PATH_FAMILIES.some((family) =>
-    target === family.path
-      ? !(family.readable === true && method.toUpperCase() === 'GET')
-      : target.startsWith(`${family.path}/`));
+  const upperMethod = method.toUpperCase();
+  return REFUSED_OPERATIONS.some(
+    (operation) => operation.method === upperMethod && matchesEndpointPath(operation.path, path),
+  );
 }
 
 type Verdict = { readonly endpoint: EndpointInfo } | { readonly refusal: string };
