@@ -69,6 +69,7 @@ const CATALOG_POLICY = {
     Articles: "twitter",
     Broadcasts: "twitter",
     Communities: "twitter",
+    "Community Notes": "twitter",
     Draws: "extraction",
     Events: "monitoring",
     Extractions: "extraction",

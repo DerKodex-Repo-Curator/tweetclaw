@@ -41,6 +41,7 @@ function serializeContract(contract) {
     `"counts": ${JSON.stringify(contract.counts)},`,
     `"approvalFreeReads": ${JSON.stringify(contract.approvalFreeReads)},`,
     `"blockedOperations": ${jsonLines(contract.blockedOperations)},`,
+    `"sessionOnlyOperations": ${jsonLines(contract.sessionOnlyOperations)},`,
     `"parameters": ${jsonLines(parameters.values)},`,
     `"responseShapes": ${jsonLines(responseShapes.values)},`,
     `"operations": ${jsonLines(operations)}`,
@@ -76,7 +77,7 @@ function describeDrift(committed, generated) {
   for (const key of before.keys()) {
     if (!after.has(key)) lines.push(`the spec drops ${key}`);
   }
-  return lines.length === 0 ? ["counts, approval rules, or blocked operations differ"] : lines;
+  return lines.length === 0 ? ["counts, approval rules, blocked operations, or session-only operations differ"] : lines;
 }
 
 function coverageRow(label, count) {

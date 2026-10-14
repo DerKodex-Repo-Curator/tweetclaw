@@ -32,6 +32,7 @@ interface StoredContract {
   readonly operations: readonly StoredOperation[];
   readonly parameters: readonly StoredParameter[];
   readonly responseShapes: readonly string[];
+  readonly sessionOnlyOperations: readonly OperationKey[];
 }
 
 interface ApiContract {
@@ -42,6 +43,7 @@ interface ApiContract {
   readonly endpoints: readonly EndpointInfo[];
   /** The offer of each endpoint that accepts MPP. */
   readonly mppOffers: ReadonlyMap<EndpointInfo, MppOffer>;
+  readonly sessionOnlyOperations: readonly OperationKey[];
 }
 
 const PARAMETER_LOCATIONS = ['body', 'header', 'path', 'query'] as const;
@@ -85,6 +87,7 @@ function loadApiContract(contract: StoredContract): ApiContract {
     blockedOperations: contract.blockedOperations,
     endpoints,
     mppOffers,
+    sessionOnlyOperations: contract.sessionOnlyOperations,
   };
 }
 
@@ -93,7 +96,8 @@ const {
   blockedOperations: BLOCKED_OPERATIONS,
   endpoints: API_SPEC,
   mppOffers: MPP_OFFERS,
+  sessionOnlyOperations: SESSION_ONLY_OPERATIONS,
 } = loadApiContract(GENERATED_API_CONTRACT);
 
-export { API_SPEC, APPROVAL_FREE_READS, BLOCKED_OPERATIONS, loadApiContract, MPP_OFFERS };
+export { API_SPEC, APPROVAL_FREE_READS, BLOCKED_OPERATIONS, loadApiContract, MPP_OFFERS, SESSION_ONLY_OPERATIONS };
 export type { StoredContract };

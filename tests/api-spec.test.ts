@@ -28,6 +28,7 @@ const CORRUPT_BASE: StoredContract = {
   }],
   parameters: [{ description: 'Valid', in: 'query', name: 'valid', required: false, type: 'string' }],
   responseShapes: ['{ ok }'],
+  sessionOnlyOperations: [],
 };
 
 function hasRequiredIdempotencyKey(endpoint: (typeof API_SPEC)[number]): boolean {

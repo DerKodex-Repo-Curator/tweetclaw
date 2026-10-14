@@ -376,6 +376,10 @@ function buildContract(openapi, policy) {
       blockedOperations: [...policy.excluded, ...placed.eventStreams.map((entry) => entry.key)]
         .map((key) => operationKey(key))
         .toSorted(byPathThenMethod),
+      sessionOnlyOperations: entries
+        .filter((entry) => entry.path.startsWith(API_PREFIX) && needsBrowserSession(openapi, entry.operation))
+        .map((entry) => operationKey(entry.key))
+        .toSorted(byPathThenMethod),
       operations,
     },
   };
