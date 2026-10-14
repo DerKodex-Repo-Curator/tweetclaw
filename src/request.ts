@@ -69,7 +69,24 @@ function buildFetchUrl(baseUrl: string, path: string, query?: Readonly<Record<st
   return url.toString();
 }
 
-const REFUSED_OPERATIONS: ReadonlyArray<{ readonly method: string; readonly path: string }> = [
+// Path families an agent never reaches, whatever the generated catalog says.
+// Key management, payments, account credentials, account settings and support
+// stay in the dashboard. A family covers its own path and every path under it,
+// for every method. A `readable` family still allows a GET of its own path.
+// This list is written by hand on purpose, so no spec change can open a route.
+const REFUSED_PATH_FAMILIES: ReadonlyArray<{ readonly path: string; readonly readable?: true }> = [
+  { path: '/api/v1/account', readable: true },
+  { path: '/api/v1/api-keys' },
+  { path: '/api/v1/credits', readable: true },
+  { path: '/api/v1/guest-wallets' },
+  { path: '/api/v1/subscribe' },
+  { path: '/api/v1/support' },
+  { path: '/api/v1/x/account-connection-attempts' },
+  { path: '/api/v1/x/account-connection-challenges' },
+  { path: '/api/v1/x/accounts', readable: true },
+];
+
+const SESSION_ONLY_REFUSALS: ReadonlyArray<{ readonly method: string; readonly path: string }> = [
   { method: 'GET', path: '/api/v1/api-keys' },
   { method: 'POST', path: '/api/v1/api-keys' },
   { method: 'DELETE', path: '/api/v1/api-keys/:id' },
@@ -82,11 +99,23 @@ const REFUSED_OPERATIONS: ReadonlyArray<{ readonly method: string; readonly path
   { method: 'POST', path: '/api/v1/x/accounts/bulk-retry' },
 ];
 
+function isInRefusedFamily(method: string, path: string): boolean {
+  const target = canonicalPath(path);
+  return REFUSED_PATH_FAMILIES.some((family) =>
+    target === family.path
+      ? !(family.readable === true && method === 'GET')
+      : target.startsWith(`${family.path}/`));
+}
+
+function isSessionOnly(method: string, path: string): boolean {
+  return SESSION_ONLY_REFUSALS.some(
+    (operation) => operation.method === method && matchesEndpointPath(operation.path, path),
+  );
+}
+
 function isStaticallyRefused(method: string, path: string): boolean {
   const upperMethod = method.toUpperCase();
-  return REFUSED_OPERATIONS.some(
-    (operation) => operation.method === upperMethod && matchesEndpointPath(operation.path, path),
-  );
+  return isInRefusedFamily(upperMethod, path) || isSessionOnly(upperMethod, path);
 }
 
 type Verdict = { readonly endpoint: EndpointInfo } | { readonly refusal: string };
