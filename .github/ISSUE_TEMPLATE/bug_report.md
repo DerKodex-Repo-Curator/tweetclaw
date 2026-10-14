@@ -23,10 +23,10 @@ Describe the result. Include sanitized errors and stack traces.
 
 ## Environment
 
-- OpenClaw version:
-- TweetClaw version:
-- Node.js version:
-- OS:
+- **OpenClaw version.**
+- **TweetClaw version.**
+- **Node.js version.**
+- **OS.**
 
 ## Additional context
 

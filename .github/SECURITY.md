@@ -4,7 +4,7 @@
 
 Do not publish vulnerability details in an issue.
 
-Email [security@xquik.com](mailto:security@xquik.com) with:
+Email [security@xquik.com](mailto:security@xquik.com) with these details.
 
 - Affected version and component
 - Minimal reproduction steps
@@ -22,7 +22,7 @@ after confirming the issue.
 
 ## Scope
 
-In scope:
+These items are in scope.
 
 - The plugin source and bundled npm artifact
 - The TweetClaw Skill
