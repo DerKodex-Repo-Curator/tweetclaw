@@ -2,15 +2,11 @@
 
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/13730/badge)](https://www.bestpractices.dev/projects/13730)
 [![npm](https://img.shields.io/npm/v/@xquik%2Ftweetclaw.svg)](https://registry.npmjs.org/@xquik%2ftweetclaw)
-[![npm downloads](https://img.shields.io/npm/dm/@xquik/tweetclaw.svg)](https://registry.npmjs.org/@xquik%2ftweetclaw)
 [![MIT license](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 ![GitHub stars](https://img.shields.io/github/stars/Xquik-dev/tweetclaw.svg)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg?url=https%3A%2F%2Fgithub.com%2FXquik-dev%2Ftweetclaw)](https://deepwiki.com/Xquik-dev/tweetclaw)
 [![Context7](https://img.shields.io/badge/Context7-agent_docs-059669)](https://context7.com/xquik-dev/tweetclaw)
-[![Skills.sh](https://www.skills.sh/b/xquik-dev/tweetclaw)](https://www.skills.sh/xquik-dev/tweetclaw)
-[![Skills.sh x-twitter-scraper Skill](https://www.skills.sh/b/xquik-dev/x-twitter-scraper)](https://www.skills.sh/xquik-dev/x-twitter-scraper)
 <a href="https://nothumansearch.ai/site/xquik.com" target="_blank" rel="noopener"><img src="https://nothumansearch.ai/badge/xquik.com.svg" alt="NHS Agentic Readiness Score" height="28"></a>
-[![Apify Actor](https://apify.com/actor-badge?actor=xquik/x-tweet-scraper)](https://apify.com/xquik/x-tweet-scraper)
 
 TweetClaw is the Twitter bot plugin for [OpenClaw](https://github.com/openclaw/openclaw). It runs on Xquik. Its packaged `SKILL.md` also installs as an OpenClaw skill.
 
@@ -21,6 +17,40 @@ Xquik is an independent third-party service. Not affiliated with X Corp. "Twitte
 Your agent can post, reply, search tweets, export followers & monitor accounts.
 Every write waits for your approval. Use Xquik MCP with remote MCP clients and
 an SDK in application code.
+
+<!-- trust:start -->
+
+## Trust & usage
+
+[![Twitter API package downloads](https://img.shields.io/endpoint?url=https%3A%2F%2Fxquik.com%2Fbadges%2Fdownloads.json)](https://xquik.com/trust#downloads)
+[![Twitter scraper users on Apify](https://img.shields.io/endpoint?url=https%3A%2F%2Fxquik.com%2Fbadges%2Fapify-users.json)](https://apify.com/xquik)
+[![Twitter scraper runs on Apify](https://img.shields.io/endpoint?url=https%3A%2F%2Fxquik.com%2Fbadges%2Fapify-runs.json)](https://apify.com/xquik)
+[![Tweet scraper rating on Apify](https://img.shields.io/endpoint?url=https%3A%2F%2Fxquik.com%2Fbadges%2Fapify-rating.json)](https://apify.com/xquik/x-tweet-scraper/reviews)
+[![Xquik Twitter API accounts](https://img.shields.io/endpoint?url=https%3A%2F%2Fxquik.com%2Fbadges%2Faccounts.json)](https://xquik.com/trust#accounts)
+[![Twitter Skill installs](https://img.shields.io/endpoint?url=https%3A%2F%2Fxquik.com%2Fbadges%2Fskill-installs.json)](https://xquik.com/trust#skill-installs)
+[![Twitter API median response time](https://img.shields.io/endpoint?url=https%3A%2F%2Fxquik.com%2Fbadges%2Frest-p50.json)](https://xquik.com/trust#speed)
+[![Xquik GitHub stars](https://img.shields.io/endpoint?url=https%3A%2F%2Fxquik.com%2Fbadges%2Fgithub-stars.json)](https://github.com/Xquik-dev)
+[![@xquik/tweetclaw downloads on npm](https://img.shields.io/endpoint?url=https%3A%2F%2Fxquik.com%2Fbadges%2Fnpm-xquik-tweetclaw.json)](https://www.npmjs.com/package/@xquik/tweetclaw)
+[![tweetclaw downloads on ClawHub](https://img.shields.io/endpoint?url=https%3A%2F%2Fxquik.com%2Fbadges%2Fclawhub-tweetclaw.json)](https://clawhub.ai/xquik/skills/tweetclaw)
+[![tweetclaw Skill installs on skills.sh](https://img.shields.io/endpoint?url=https%3A%2F%2Fxquik.com%2Fbadges%2Fskills-tweetclaw.json)](https://skills.sh/xquik-dev/tweetclaw)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/13730/badge)](https://www.bestpractices.dev/projects/13730)
+
+- 51,000+ downloads of Xquik's Twitter API packages on npm, PyPI, RubyGems, NuGet, Packagist & Terraform ([source](https://xquik.com/trust#downloads)) <!-- trust:downloads 51020 -->
+- 7,800+ users of Xquik's Twitter scraper Actors on Apify ([source](https://apify.com/xquik)) <!-- trust:apify-users 7800 -->
+- 5,700,000+ runs of Xquik's Twitter scraper Actors on Apify ([source](https://apify.com/xquik)) <!-- trust:apify-runs 5704701 -->
+- 4.66 of 5 for the X Tweet Scraper from 16 Apify reviews ([source](https://apify.com/xquik/x-tweet-scraper/reviews)) <!-- trust:apify-rating 4.66 16 -->
+- 3,900+ accounts on xquik.com ([source](https://xquik.com/trust#accounts)) <!-- trust:accounts 3924 -->
+- 1,600+ installs of Xquik's Twitter Skills on skills.sh ([source](https://xquik.com/trust#skill-installs)) <!-- trust:skill-installs 1612 -->
+- 501 ms median REST API read time over the last 7 days ([source](https://xquik.com/trust#speed)) <!-- trust:rest-p50 501 -->
+- 370+ GitHub stars across Xquik's repos ([source](https://github.com/Xquik-dev)) <!-- trust:github-stars 374 -->
+- 10,000+ downloads of @xquik/tweetclaw on npm ([source](https://www.npmjs.com/package/@xquik/tweetclaw)) <!-- trust:npm-xquik-tweetclaw 10800 -->
+- 2,500+ downloads of tweetclaw on ClawHub ([source](https://clawhub.ai/xquik/skills/tweetclaw)) <!-- trust:clawhub-tweetclaw 2566 -->
+- 78 installs of this repo's Skills on skills.sh ([source](https://skills.sh/xquik-dev/tweetclaw)) <!-- trust:skills-tweetclaw 78 -->
+- This repo meets the OpenSSF Best Practices passing criteria ([source](https://www.bestpractices.dev/projects/13730)) <!-- trust:openssf-tweetclaw 1 -->
+
+Checked on 2026-10-15. See each number with its date & source on [xquik.com/trust](https://xquik.com/trust) or as [JSON](https://xquik.com/trust.json).
+
+<!-- trust:end -->
 
 ## Common OpenClaw tasks
 
